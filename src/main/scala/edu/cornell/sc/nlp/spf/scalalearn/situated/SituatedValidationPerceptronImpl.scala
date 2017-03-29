@@ -38,11 +38,7 @@ import scala.collection.JavaConverters._
   *          Training data item.
   */
 
-class SituatedValidationPerceptronImpl[SAMPLE <: ISituatedDataItem[Sentence, _],
-                                        MR,
-                                        ESTEP,
-                                        ERESULT,
-                                        DI <: ILabeledDataItem[SAMPLE, _]]
+class SituatedValidationPerceptronImpl[SAMPLE <: ISituatedDataItem[Sentence, _], MR, ESTEP, ERESULT, DI <: ILabeledDataItem[SAMPLE, _]]
                                         (numIterations: Int,
                                          margin: Double,
                                          trainingData: IDataCollection[DI],
@@ -55,11 +51,7 @@ class SituatedValidationPerceptronImpl[SAMPLE <: ISituatedDataItem[Sentence, _],
                                          validator: IValidator[DI, ERESULT],
                                          categoryServices: ICategoryServices[MR],
                                          genlex: ILexiconGenerator[DI, MR, IJointModelImmutable[SAMPLE, MR, ESTEP]])
-                                          extends AbstractSituatedLearner[SAMPLE,
-                                            MR,
-                                            ESTEP,
-                                            ERESULT,
-                                            DI] (numIterations,
+                                          extends AbstractSituatedLearner[SAMPLE, MR, ESTEP, ERESULT, DI] (numIterations,
                                             trainingData,
                                             trainingDataDebug,
                                             maxSentenceLength,
