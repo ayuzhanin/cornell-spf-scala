@@ -11,23 +11,19 @@ import edu.cornell.cs.nlp.spf.learn.{ILearner, LearningStats}
 import edu.cornell.cs.nlp.spf.parser.ccg.model.IDataItemModel
 import edu.cornell.cs.nlp.spf.parser.joint.model.{IJointDataItemModel, IJointModelImmutable, JointModel}
 import edu.cornell.cs.nlp.spf.parser.joint.{IJointDerivation, IJointOutputLogger, IJointParser}
-import edu.cornell.cs.nlp.utils.collections.CollectionUtils
 import edu.cornell.cs.nlp.utils.log.LoggerFactory
 import edu.cornell.cs.nlp.utils.system.MemoryReport
 
 import scala.collection.JavaConverters._
 
-class AbstractSituatedLearnerImpl {
 
+object AbstractSituatedLearnerImpl {
+  val GOLD_LF_IS_MAX: String = "G"
+  val HAS_VALID_LF: String = "V"
+  val TRIGGERED_UPDATE: String = "U"
 }
 
-object AbstractSituatedLearner2 {
-  protected val GOLD_LF_IS_MAX: String = "G"
-  protected val HAS_VALID_LF: String = "V"
-  protected val TRIGGERED_UPDATE: String = "U"
-}
-
-abstract class AbstractSituatedLearner2[SAMPLE <: ISituatedDataItem[Sentence, _],
+abstract class AbstractSituatedLearnerImpl[SAMPLE <: ISituatedDataItem[Sentence, _],
                                         MR,
                                         ESTEP,
                                         ERESULT,
@@ -46,28 +42,28 @@ abstract class AbstractSituatedLearner2[SAMPLE <: ISituatedDataItem[Sentence, _]
   type JModel = JointModel[SAMPLE, MR, ESTEP]
   type JointDerivation = IJointDerivation[MR, ERESULT]
 
-  import AbstractSituatedLearner2._
+  import AbstractSituatedLearnerImpl._
 
-  private val stats: LearningStats = new LearningStats.Builder(trainingData.size())
+  protected val stats: LearningStats = new LearningStats.Builder(trainingData.size())
     .addStat(HAS_VALID_LF, "Has a valid parse")
     .addStat(TRIGGERED_UPDATE, "Sample triggered update")
     .addStat(GOLD_LF_IS_MAX, "The best-scoring LF equals the provided GOLD debug LF")
     .setNumberStat("Number of new lexical entries added for sample")
     .build()
 
-  val LOG = LoggerFactory.create(classOf[AbstractSituatedLearner2[SAMPLE, MR, ESTEP, ERESULT, DI]])
+  val log = LoggerFactory.create(classOf[AbstractSituatedLearnerImpl[SAMPLE, MR, ESTEP, ERESULT, DI]])
 
   override def train(model: JModel): Unit = {
     // Init GENLEX.
-    LOG.info("Initializing GENLEX ...")
+    log.info("Initializing GENLEX ...")
     genlex.init(model)
 
     // Epochs
     (1 to epochs).foreach { epochNumber =>
         // Training epoch, iterate over all training samples
-        LOG.info("=========================")
-        LOG.info(s"Training epoch $epochNumber")
-        LOG.info("=========================")
+        log.info("=========================")
+        log.info(s"Training epoch $epochNumber")
+        log.info("=========================")
         var itemCounter = -1
 
         // Iterating over training data
@@ -79,40 +75,39 @@ abstract class AbstractSituatedLearner2[SAMPLE <: ISituatedDataItem[Sentence, _]
 
           // Log sample header
           itemCounter = itemCounter + 1
-          LOG.info(s"[$itemCounter]: ================== [$epochNumber]")
-          LOG.info("Sample type: %s", classOf[DI].getSimpleName)
-          LOG.info("%s", dataItem)
+          log.info(s"[$itemCounter]: ================== [$epochNumber]")
+          log.info("Sample type: %s", classOf[DI].getSimpleName)
+          log.info("%s", dataItem)
 
           // Skip sample, if over the length limit
-          if (dataItem.getSample.getSample.getTokens.size > maxSentenceLength) {
-            LOG.warn("Training sample too long, skipping")
-            continue //todo: continue is not supported
+          if (dataItem.getSample.getSample.getTokens.size > maxSentenceLength)
+            log.warn("Training sample too long, skipping")
+          else {
+            // Sample data item model
+            val dataItemModel = model.createJointDataItemModel(dataItem.getSample)
+
+            // ///////////////////////////
+            // Step I: Generate a large number of potential lexical entries,
+            // parse to prune them and update the lexicon.
+            // ///////////////////////////
+            lexicalInduction(dataItem, dataItemModel, model, itemCounter, epochNumber)
+
+            // ///////////////////////////
+            // Step II: Update model parameters.
+            // ///////////////////////////
+            parameterUpdate(dataItem, dataItemModel, model, itemCounter, epochNumber)
+
+            // Record statistics
+            stats.mean("sample processing", (System.currentTimeMillis - startTime) / 1000.0, "sec")
+            stats.count("processed", epochNumber)
+            log.info(s"Total sample handling time: ${(System.currentTimeMillis - startTime) / 1000.0}sec")
           }
-
-          // Sample data item model
-          val dataItemModel = model.createJointDataItemModel(dataItem.getSample)
-
-          // ///////////////////////////
-          // Step I: Generate a large number of potential lexical entries,
-          // parse to prune them and update the lexicon.
-          // ///////////////////////////
-          lexicalInduction(dataItem, dataItemModel, model, itemCounter, epochNumber)
-
-          // ///////////////////////////
-          // Step II: Update model parameters.
-          // ///////////////////////////
-          parameterUpdate(dataItem, dataItemModel, model, itemCounter, epochNumber)
-
-          // Record statistics
-          stats.mean("sample processing", (System.currentTimeMillis - startTime) / 1000.0, "sec")
-          stats.count("processed", epochNumber)
-          LOG.info(s"Total sample handling time: ${(System.currentTimeMillis - startTime) / 1000.0}sec")
         }
 
         // Output epoch statistics
-        LOG.info(s"System memory: ${MemoryReport.generate}")
-        LOG.info("Epoch stats:")
-        LOG.info(stats)
+        log.info(s"System memory: ${MemoryReport.generate}")
+        log.info("Epoch stats:")
+        log.info(stats)
     }
   }
 
@@ -123,7 +118,7 @@ abstract class AbstractSituatedLearner2[SAMPLE <: ISituatedDataItem[Sentence, _]
                                epochNumber: Int): Unit = {
     // Generate lexical entries
     val generatedLexicon = genlex.generate(dataItem, model, categoryServices)
-    LOG.info("Generated lexicon size = %d", generatedLexicon.size)
+    log.info("Generated lexicon size = %d", generatedLexicon.size)
 
     if (generatedLexicon.size > 0) {
       // Case generated lexical entries
@@ -133,23 +128,24 @@ abstract class AbstractSituatedLearner2[SAMPLE <: ISituatedDataItem[Sentence, _]
 
       // Log lexical generation parsing time
       stats.mean("genlex parse", generateLexiconParserOutput.getInferenceTime / 1000.0, "sec")
-      LOG.info("Lexicon induction parsing time: %.4fsec", generateLexiconParserOutput.getInferenceTime / 1000.0)
+      log.info("Lexicon induction parsing time: %.4fsec", generateLexiconParserOutput.getInferenceTime / 1000.0)
       val output = if (generateLexiconParserOutput.isExact) "exact" else "approximate"
-      LOG.info(s"Output is $output")
+      log.info(s"Output is $output")
 
       // Log generation parser output
       parserOutputLogger.log(generateLexiconParserOutput, dataItemModel, s"$dataItemNumber-genlex")
 
       // Get lexical generation parses
       val generationParses = generateLexiconParserOutput.getDerivations.asScala
-      LOG.info(s"Created ${generationParses.size} lexicon generation parses for training sample")
+      log.info(s"Created ${generationParses.size} lexicon generation parses for training sample")
 
       // Use validation function to prune generation parses
-      CollectionUtils.filterInPlace(generationParses, e => validate(dataItem, e.getResult()))
-      LOG.info(s"Removed ${generateLexiconParserOutput.getDerivations.size - generationParses.size} invalid parses")
+      val generationParsesValidated = generationParses.filter(e => validate(dataItem, e.getResult))
+
+      log.info(s"Removed ${generateLexiconParserOutput.getDerivations.size - generationParsesValidated.size} invalid parses")
 
       // Collect max scoring valid generation parses
-      val bestGenerationParses = generationParses.foldLeft((List.empty[JointDerivation], -java.lang.Double.MAX_VALUE)) { (tuple, parse) =>
+      val bestGenerationParses = generationParsesValidated.foldLeft((List.empty[JointDerivation], -java.lang.Double.MAX_VALUE)) { (tuple, parse) =>
         val (acc, currentScore) = tuple
         if (parse.getViterbiScore > currentScore) (List(parse), parse.getViterbiScore)
         else if (parse.getViterbiScore == currentScore) (acc :+ parse, currentScore)
@@ -159,29 +155,22 @@ abstract class AbstractSituatedLearner2[SAMPLE <: ISituatedDataItem[Sentence, _]
       AbstractSituatedLearner.LOG.info(s"${bestGenerationParses.size} valid best parses for lexical generation:")
       bestGenerationParses.foreach(logParse(dataItem, _, valid = true, verbose = true, dataItemModel))
 
+      // Проверить на эквивалетность джавовского код и переписать красивее
       // Update the model's lexicon with generated lexical
       // entries from the max scoring valid generation parses
-      var newLexicalEntries: Int = 0
-      for (parse <- bestGenerationParses) {
-        for (entry <- parse.getMaxLexicalEntries.asScala) {
-          if (genlex.isGenerated(entry)) {
-            if (model.addLexEntry(LexiconGenerationServices.unmark(entry))) {
-              newLexicalEntries += 1
-              AbstractSituatedLearner.LOG.info(s"Added LexicalEntry to model: $entry [${model.getTheta.printValues(model.computeFeatures(entry))}]")
-            }
-
-            // Lexical generators might link related lexical
-            // entries, so if we add the original one, we
-            // should also add all its linked ones
-            for (linkedEntry <- entry.getLinkedEntries.asScala) {
-              if (model.addLexEntry(LexiconGenerationServices.unmark(linkedEntry))) {
-                newLexicalEntries += 1
-                AbstractSituatedLearner.LOG.info(s"Added (linked) LexicalEntry to model: $linkedEntry [${model.getTheta.printValues(model.computeFeatures(linkedEntry))}]")
-              }
-            }
+      val newLexicalEntries = bestGenerationParses.foldLeft(0){ (newLexicalEntriesCounter, parse) =>
+        newLexicalEntriesCounter + parse.getMaxLexicalEntries.asScala.foldLeft(0){ (innerCounter, entry) =>
+          val linkedEntries = entry.getLinkedEntries.asScala.filter(linkedEntry => model.addLexEntry(LexiconGenerationServices.unmark(linkedEntry)))
+          linkedEntries.foreach { linkedEntry =>
+            AbstractSituatedLearner.LOG.info(s"Added (linked) LexicalEntry to model: $linkedEntry [${model.getTheta.printValues(model.computeFeatures(linkedEntry))}]")
           }
+          if (model.addLexEntry(LexiconGenerationServices.unmark(entry))) {
+            AbstractSituatedLearner.LOG.info(s"Added LexicalEntry to model: $entry [${model.getTheta.printValues(model.computeFeatures(entry))}]")
+            innerCounter + linkedEntries.size + 1
+          } else innerCounter + linkedEntries.size
         }
       }
+
       // Record statistics
       if (newLexicalEntries > 0) stats.appendSampleStat(dataItemNumber, epochNumber, newLexicalEntries)
     }
@@ -191,7 +180,7 @@ abstract class AbstractSituatedLearner2[SAMPLE <: ISituatedDataItem[Sentence, _]
     }
   }
 
-  protected def isGoldDebugCorrect(dataItem: DI, label: ERESULT) =
+  protected def isGoldDebugCorrect(dataItem: DI, label: ERESULT): Boolean =
     if (trainingDataDebug containsKey dataItem) (trainingDataDebug get dataItem) == label
     else false
 
@@ -199,8 +188,8 @@ abstract class AbstractSituatedLearner2[SAMPLE <: ISituatedDataItem[Sentence, _]
                          parse: JointDerivation,
                          valid: Boolean,
                          verbose: Boolean,
-                         dataItemModel: IDataItemModel[MR]) =
-    logParse(dataItem, parse, valid, verbose, null, dataItemModel)
+                         dataItemModel: IDataItemModel[MR]): Unit =
+    logParse(dataItem, parse, valid, verbose, "", dataItemModel)
 
   protected def logParse(dataItem: DI,
                          parse: JointDerivation,
@@ -208,14 +197,9 @@ abstract class AbstractSituatedLearner2[SAMPLE <: ISituatedDataItem[Sentence, _]
                          verbose: Boolean,
                          tag: String,
                          dataItemModel: IDataItemModel[MR]): Unit = {
-    var isGold: Boolean = false
-    if (isGoldDebugCorrect(dataItem, parse.getResult)) isGold = true
-    else isGold = false
-    AbstractSituatedLearner.LOG.info("%s%s[%.2f%s] %s", if (isGold) "* "
-    else "  ", if (tag == null) ""
-    else tag + " ", parse.getViterbiScore, if (valid == null) ""
-    else if (valid) ", V"
-    else ", X", parse)
+    val isGold = isGoldDebugCorrect(dataItem, parse.getResult)
+    AbstractSituatedLearner.LOG.info(s"${if (isGold) "* " else "  "}${tag + " "}[${parse.getViterbiScore}${if (valid) ", V" else ", X"}] $parse")
+
     if (verbose) {
       parse.getMaxSteps.asScala.foreach { step =>
         AbstractSituatedLearner.LOG.info(s"\t${step.toString(false, false, dataItemModel.getTheta)}")

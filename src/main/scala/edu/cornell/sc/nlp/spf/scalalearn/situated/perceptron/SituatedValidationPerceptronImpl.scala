@@ -1,7 +1,4 @@
-package edu.cornell.sc.nlp.spf.scalalearn.situated
-
-import java.util
-import java.util.HashMap
+package edu.cornell.sc.nlp.spf.scalalearn.situated.perceptron
 
 import edu.cornell.cs.nlp.spf.base.hashvector.HashVectorFactory
 import edu.cornell.cs.nlp.spf.ccg.categories.ICategoryServices
@@ -10,22 +7,19 @@ import edu.cornell.cs.nlp.spf.data.collection.IDataCollection
 import edu.cornell.cs.nlp.spf.data.sentence.Sentence
 import edu.cornell.cs.nlp.spf.data.situated.ISituatedDataItem
 import edu.cornell.cs.nlp.spf.data.utils.IValidator
-import edu.cornell.cs.nlp.spf.explat.{IResourceRepository, ParameterizedExperiment}
 import edu.cornell.cs.nlp.spf.explat.resources.IResourceObjectCreator
 import edu.cornell.cs.nlp.spf.explat.resources.usage.ResourceUsage
+import edu.cornell.cs.nlp.spf.explat.{IResourceRepository, ParameterizedExperiment}
 import edu.cornell.cs.nlp.spf.genlex.ccg.ILexiconGenerator
 import edu.cornell.cs.nlp.spf.learn.situated.AbstractSituatedLearner
 import edu.cornell.cs.nlp.spf.parser.IParserOutput
 import edu.cornell.cs.nlp.spf.parser.ccg.model.IDataItemModel
 import edu.cornell.cs.nlp.spf.parser.joint.model.{IJointDataItemModel, IJointModelImmutable, JointModel}
 import edu.cornell.cs.nlp.spf.parser.joint.{IJointDerivation, IJointOutput, IJointOutputLogger, IJointParser}
-import edu.cornell.cs.nlp.utils.composites.Pair
 import edu.cornell.cs.nlp.utils.log.{ILogger, LoggerFactory}
 
 import scala.collection.JavaConverters._
-/**
-  * Created by a.ayuzhanin on 19/03/2017.
-  */
+
 /**
   * Situated validation-based perceptron learner. See Artzi and Zettlemoyer 2013
   * for detailed description.
@@ -76,7 +70,7 @@ class SituatedValidationPerceptronImpl[SAMPLE <: ISituatedDataItem[Sentence, _],
   type ParsesPair = edu.cornell.cs.nlp.utils.composites.Pair[ParsesJava, ParsesJava]
   type JModel = JointModel[SAMPLE, MR, ESTEP]
 
-  val log: ILogger = LoggerFactory.create(classOf[SituatedValidationPerceptronImpl[SAMPLE,MR, ESTEP, ERESULT, DI]])
+  val log = LoggerFactory.create(classOf[SituatedValidationPerceptronImpl[SAMPLE,MR, ESTEP, ERESULT, DI]])
 
   private def constructUpdate(violatingValidParses: Seq[JointDerivation], violatingInvalidParses: Seq[JointDerivation], model: JModel) = {
 
@@ -282,7 +276,7 @@ object SituatedValidationPerceptronImpl {
   }
 
 
-  case class Creator[SAMPLE <: ISituatedDataItem[Sentence, _], MR, ESTEP, ERESULT, DI <: ILabeledDataItem [SAMPLE, _]]
+  case class Creator[SAMPLE <: ISituatedDataItem[Sentence, _], MR, ESTEP, ERESULT, DI <: ILabeledDataItem [SAMPLE, _]]()
    extends IResourceObjectCreator[SituatedValidationPerceptronImpl[SAMPLE, MR, ESTEP, ERESULT, DI]] {
 
     override def create(params: ParameterizedExperiment#Parameters, repo: IResourceRepository): SituatedValidationPerceptronImpl[SAMPLE, MR, ESTEP, ERESULT, DI] = {
