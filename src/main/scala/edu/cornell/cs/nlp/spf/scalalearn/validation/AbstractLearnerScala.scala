@@ -13,11 +13,11 @@ import edu.cornell.cs.nlp.spf.learn.{ILearner, LearningStats}
 import edu.cornell.cs.nlp.spf.parser.{IDerivation, IOutputLogger, IParserOutput, ParsingOp}
 import edu.cornell.cs.nlp.spf.parser.ccg.model.{IDataItemModel, IModelImmutable, Model}
 import edu.cornell.cs.nlp.spf.parser.filter.IParsingFilterFactory
-import edu.cornell.cs.nlp.utils.collections.CollectionUtils
 import edu.cornell.cs.nlp.utils.filter.IFilter
 import edu.cornell.cs.nlp.utils.log.{ILogger, LoggerFactory}
 import edu.cornell.cs.nlp.utils.system.MemoryReport
 
+import scala.collection.JavaConverters._
 
 object AbstractLearnerScala {
   protected val GOLD_LF_IS_MAX: String = "G"
@@ -27,21 +27,23 @@ object AbstractLearnerScala {
 
 abstract class AbstractLearnerScala[SAMPLE <: IDataItem[_],
                                     DI <: ILabeledDataItem[SAMPLE, _],
-                                    PO <: IParserOutput[MR], MR] protected(val epochs: Int,
-                                                                           val trainingData: IDataCollection[DI],
-                                                                           val trainingDataDebug: util.Map[DI, MR],
-                                                                           val lexiconGenerationBeamSize: Integer,
-                                                                           val parserOutputLogger: IOutputLogger[MR],
-                                                                           val conflateGenlexAndPrunedParses: Boolean,
-                                                                           val errorDriven: Boolean,
-                                                                           val categoryServices: ICategoryServices[MR],
-                                                                           val genlex: ILexiconGenerator[DI, MR, IModelImmutable[SAMPLE, MR]],
-                                                                           val processingFilter: IFilter[DI],
-                                                                           val parsingFilterFactory: IParsingFilterFactory[DI, MR])
+                                    PO <: IParserOutput[MR],
+                                    MR] protected(val epochs: Int,
+                                                   val trainingData: IDataCollection[DI],
+                                                   val trainingDataDebug: util.Map[DI, MR],
+                                                   val lexiconGenerationBeamSize: Integer,
+                                                   val parserOutputLogger: IOutputLogger[MR],
+                                                   val conflateGenlexAndPrunedParses: Boolean,
+                                                   val errorDriven: Boolean,
+                                                   val categoryServices: ICategoryServices[MR],
+                                                   val genlex: ILexiconGenerator[DI, MR, IModelImmutable[SAMPLE, MR]],
+                                                   val processingFilter: IFilter[DI],
+                                                   val parsingFilterFactory: IParsingFilterFactory[DI, MR])
   extends ILearner[SAMPLE, DI, Model[SAMPLE, MR]] {
 
   import AbstractLearnerScala._
 
+  val log: ILogger = LoggerFactory.create(classOf[AbstractLearnerScala[SAMPLE, DI, PO, MR]])
   /**
     * Learning statistics.
     */
@@ -51,124 +53,144 @@ abstract class AbstractLearnerScala[SAMPLE <: IDataItem[_],
     .addStat(GOLD_LF_IS_MAX, "The best-scoring LF equals the provided GOLD debug LF")
     .setNumberStat("Number of new lexical entries added").build
 
-  override def train(model: Model[SAMPLE, MR]): Unit = { // Init GENLEX.
-    AbstractLearner.LOG.info("Initializing GENLEX ...")
+  override def train(model: Model[SAMPLE, MR]): Unit = {
+
+    // Init GENLEX.
+    log.info("Initializing GENLEX ...")
     genlex.init(model)
+
     // Epochs
-    var epochNumber: Int = 0
-    while ( {
-      epochNumber < epochs
-    }) { // Training epoch, iterate over all training samples
-      AbstractLearner.LOG.info("=========================")
-      AbstractLearner.LOG.info("Training epoch %d", epochNumber)
-      AbstractLearner.LOG.info("=========================")
-      var itemCounter: Int = -1
+    (1 to epochs).foreach { epochNumber =>
+
+      // Training epoch, iterate over all training samples
+      log.info("=========================")
+      log.info(s"Training epoch $epochNumber")
+      log.info("=========================")
+
       // Iterating over training data
-      import scala.collection.JavaConversions._
-      for (dataItem <- trainingData) { // Process a single training sample
+      trainingData.asScala.zipWithIndex.foreach { case (dataItem, itemCounter) =>
+        // Process a single training sample
+
         // Record start time
         val startTime: Long = System.currentTimeMillis
+
         // Log sample header
-        AbstractLearner.LOG.info("%d : ================== [%d]", {
-          itemCounter += 1; itemCounter
-        }, epochNumber)
-        AbstractLearner.LOG.info("Sample type: %s", dataItem.getClass.getSimpleName)
-        AbstractLearner.LOG.info("%s", dataItem)
+        log.info(s"$itemCounter : ================== [$epochNumber]")
+        log.info(s"Sample type: ${dataItem.getClass.getSimpleName}")
+        log.info(dataItem.toString)
+
         // Skip sample, if over the length limit
         if (!processingFilter.test(dataItem)) {
-          AbstractLearner.LOG.info("Skipped training sample, due to processing filter")
+          log.info("Skipped training sample, due to processing filter")
           continue //todo: continue is not supported
         }
+
         stats.count("Processed", epochNumber)
-        try { // Data item model
+
+        try
+          // Data item model
           val dataItemModel: IDataItemModel[MR] = model.createDataItemModel(dataItem.getSample)
+
           // ///////////////////////////
           // Step I: Parse with current model. If we get a valid
           // parse, update parameters.
           // ///////////////////////////
+
           // Parse with current model and record some statistics
           val parserOutput: PO = parse(dataItem, dataItemModel)
           stats.mean("Model parse", parserOutput.getParsingTime / 1000.0, "sec")
-          parserOutputLogger.log(parserOutput, dataItemModel, String.format("train-%d-%d", epochNumber, itemCounter))
-          val modelParses: util.List[_ <: IDerivation[MR]] = parserOutput.getAllDerivations
-          AbstractLearner.LOG.info("Model parsing time: %.4fsec", parserOutput.getParsingTime / 1000.0)
-          AbstractLearner.LOG.info("Output is %s", if (parserOutput.isExact) "exact"
-          else "approximate")
-          AbstractLearner.LOG.info("Created %d model parses for training sample:", modelParses.size)
-          import scala.collection.JavaConversions._
-          for (parse <- modelParses) {
-            logParse(dataItem, parse, validate(dataItem, parse.getSemantics), true, dataItemModel)
-          }
+          parserOutputLogger.log(parserOutput, dataItemModel, s"train-$epochNumber-$itemCounter")
+
+          val modelParses = parserOutput.getAllDerivations.asScala
+          log.info(s"Model parsing time: ${parserOutput.getParsingTime / 1000.0}")
+          log.info(s"Output is ${if (parserOutput.isExact) "exact" else "approximate"}")
+          log.info(s"Created ${modelParses.size} model parses for training sample:")
+
+          modelParses.foreach(parse => logParse(dataItem, parse, validate(dataItem, parse.getSemantics), verbose = true, dataItemModel = dataItemModel))
+
           // Create a list of all valid parses
-          val validParses: util.List[_ <: IDerivation[MR]] = getValidParses(parserOutput, dataItem)
-          // If has a valid parse, call parameter update procedure
-          // and continue
-          if (!validParses.isEmpty && errorDriven) {
+          val validParses = getValidParses(parserOutput, dataItem).asScala
+
+          // If has a valid parse, call parameter update procedure and continue
+          if (validParses.nonEmpty && errorDriven) {
             parameterUpdate(dataItem, parserOutput, parserOutput, model, itemCounter, epochNumber)
             continue //todo: continue is not supported
           }
+
+
+          // ///////////////////////////
           // Step II: Generate new lexical entries, prune and update
           // the model. Keep the parser output for Step III.
-          if (genlex == null) { // Skip the example if not doing lexicon learning
+          // ///////////////////////////
+
+          if (genlex == null) {
+            // Skip the example if not doing lexicon learning
             continue //todo: continue is not supported
           }
-          val generationParserOutput: PO = lexicalInduction(dataItem, itemCounter, dataItemModel, model, epochNumber)
+
+          val generationParserOutput = lexicalInduction(dataItem, itemCounter, dataItemModel, model, epochNumber)
+
+          // ///////////////////////////
           // Step III: Update parameters
-          if (conflateGenlexAndPrunedParses && generationParserOutput != null) parameterUpdate(dataItem, parserOutput, generationParserOutput, model, itemCounter, epochNumber)
+          // ///////////////////////////
+
+          if (conflateGenlexAndPrunedParses && generationParserOutput != null)
+            parameterUpdate(dataItem, parserOutput, generationParserOutput, model, itemCounter, epochNumber)
           else {
             val prunedParserOutput: PO = parse(dataItem, parsingFilterFactory.create(dataItem), dataItemModel)
-            AbstractLearner.LOG.info("Conditioned parsing time: %.4fsec", prunedParserOutput.getParsingTime / 1000.0)
+            log.info("Conditioned parsing time: %.4fsec", prunedParserOutput.getParsingTime / 1000.0)
             parserOutputLogger.log(prunedParserOutput, dataItemModel, String.format("train-%d-%d-conditioned", epochNumber, itemCounter))
             parameterUpdate(dataItem, parserOutput, prunedParserOutput, model, itemCounter, epochNumber)
           }
-        } finally {
+
+        finally {
           // Record statistics.
           stats.mean("Sample processing", (System.currentTimeMillis - startTime) / 1000.0, "sec")
-          AbstractLearner.LOG.info("Total sample handling time: %.4fsec", (System.currentTimeMillis - startTime) / 1000.0)
+          log.info(s"Total sample handling time: ${(System.currentTimeMillis - startTime) / 1000.0}sec")
         }
-      }
-      // Output epoch statistics
-      AbstractLearner.LOG.info("System memory: %s", MemoryReport.generate)
-      AbstractLearner.LOG.info("Epoch stats:")
-      AbstractLearner.LOG.info(stats)
 
-      {
-        epochNumber += 1; epochNumber
+        // Output epoch statistics
+        log.info(s"System memory: ${MemoryReport.generate}")
+        log.info("Epoch stats:")
+        log.info(stats)
       }
     }
   }
 
-  private def getValidParses(parserOutput: PO, dataItem: DI): util.List[_ <: IDerivation[MR]] = {
-    val parses: util.List[_ <: IDerivation[MR]] = new util.LinkedList[IDerivation[MR]](parserOutput.getAllDerivations)
-    // Use validation function to prune generation parses. Syntax is not
-    // used to distinguish between derivations.
-    CollectionUtils.filterInPlace(parses, (e: (_$1) forSome {type _$1 <: IDerivation[MR]}) => validate(dataItem, e.getSemantics))
-    parses
-  }
+  // Use validation function to prune generation parses. Syntax is not used to distinguish between derivations.
+  private def getValidParses(parserOutput: PO, dataItem: DI) =
+    parserOutput.getAllDerivations.asScala.filter(e => validate(dataItem, e.getSemantics)).toList
 
   private def lexicalInduction(dataItem: DI, dataItemNumber: Int, dataItemModel: IDataItemModel[MR], model: Model[SAMPLE, MR], epochNumber: Int): PO = { // Generate lexical entries
-    val generatedLexicon: ILexiconImmutable[MR] = genlex.generate(dataItem, model, categoryServices)
-    AbstractLearner.LOG.info("Generated lexicon size = %d", generatedLexicon.size)
-    if (generatedLexicon.size > 0) { // Case generated lexical entries
+    val generatedLexicon = genlex.generate(dataItem, model, categoryServices)
+    log.info(s"Generated lexicon size = ${generatedLexicon.size}")
+
+    if (generatedLexicon.size > 0) {
+      // Case generated lexical entries
+
       // Create pruning filter, if the data item fits
-      val pruningFilter: Predicate[ParsingOp[MR]] = parsingFilterFactory.create(dataItem)
+      val pruningFilter = parsingFilterFactory.create(dataItem)
+
       // Parse with generated lexicon
-      val parserOutput: PO = parse(dataItem, pruningFilter, dataItemModel, generatedLexicon, lexiconGenerationBeamSize)
+      val parserOutput = parse(dataItem, pruningFilter, dataItemModel, generatedLexicon, lexiconGenerationBeamSize)
+
       // Log lexical generation parsing time
       stats.mean("genlex parse", parserOutput.getParsingTime / 1000.0, "sec")
-      AbstractLearner.LOG.info("Lexicon induction parsing time: %.4fsec", parserOutput.getParsingTime / 1000.0)
-      AbstractLearner.LOG.info("Output is %s", if (parserOutput.isExact) "exact"
-      else "approximate")
+      log.info(s"Lexicon induction parsing time: ${parserOutput.getParsingTime / 1000.0}sec")
+      log.info(s"Output is ${if (parserOutput.isExact) "exact" else "approximate"}")
+
       // Log generation parser output
-      parserOutputLogger.log(parserOutput, dataItemModel, String.format("train-%d-%d-genlex", epochNumber, dataItemNumber))
-      AbstractLearner.LOG.info("Created %d lexicon generation parses for training sample", parserOutput.getAllDerivations.size)
+      parserOutputLogger.log(parserOutput, dataItemModel, s"train-$epochNumber-$dataItemNumber-genlex")
+      log.info(s"Created ${parserOutput.getAllDerivations.size} lexicon generation parses for training sample")
+
       // Get valid lexical generation parses
-      val validParses: util.List[_ <: IDerivation[MR]] = getValidParses(parserOutput, dataItem)
-      AbstractLearner.LOG.info("Removed %d invalid parses", parserOutput.getAllDerivations.size - validParses.size)
+      val validParses = getValidParses(parserOutput, dataItem)
+      log.info(s"Removed ${parserOutput.getAllDerivations.size - validParses.size} invalid parses")
+
       // Collect max scoring valid generation parses
       val bestGenerationParses: util.List[IDerivation[MR]] = new util.LinkedList[IDerivation[MR]]
-      var currentMaxModelScore: Double = -Double.MAX_VALUE
-      import scala.collection.JavaConversions._
+      var currentMaxModelScore = -java.lang.Double.MAX_VALUE
+
       for (parse <- validParses) {
         if (parse.getScore > currentMaxModelScore) {
           currentMaxModelScore = parse.getScore
@@ -177,31 +199,28 @@ abstract class AbstractLearnerScala[SAMPLE <: IDataItem[_],
         }
         else if (parse.getScore == currentMaxModelScore) bestGenerationParses.add(parse)
       }
-      AbstractLearner.LOG.info("%d valid best parses for lexical generation:", bestGenerationParses.size)
-      import scala.collection.JavaConversions._
-      for (parse <- bestGenerationParses) {
-        logParse(dataItem, parse, true, true, dataItemModel)
-      }
-      // Update the model's lexicon with generated lexical
-      // entries from the max scoring valid generation parses
+
+      log.info(s"${bestGenerationParses.size} valid best parses for lexical generation:")
+
+      bestGenerationParses.asScala.foreach(logParse(dataItem, _, valid = true, verbose = true, dataItemModel = dataItemModel))
+      // Update the model's lexicon with generated lexical entries from the max scoring valid generation parses
       var newLexicalEntries: Int = 0
-      import scala.collection.JavaConversions._
-      for (parse <- bestGenerationParses) {
-        import scala.collection.JavaConversions._
-        for (entry <- parse.getMaxLexicalEntries) {
+
+      for (parse <- bestGenerationParses.asScala) {
+        for (entry <- parse.getMaxLexicalEntries.asScala) {
           if (genlex.isGenerated(entry)) {
             if (model.addLexEntry(LexiconGenerationServices.unmark(entry))) {
               newLexicalEntries += 1
-              AbstractLearner.LOG.info("Added LexicalEntry to model: %s [%s]", entry, model.getTheta.printValues(model.computeFeatures(entry)))
+              log.info(s"Added LexicalEntry to model: $entry [${model.getTheta.printValues(model.computeFeatures(entry))}]")
             }
             // Lexical generators might link related lexical
             // entries, so if we add the original one, we
             // should also add all its linked ones
-            import scala.collection.JavaConversions._
-            for (linkedEntry <- entry.getLinkedEntries) {
+
+            for (linkedEntry <- entry.getLinkedEntries.asScala) {
               if (model.addLexEntry(LexiconGenerationServices.unmark(linkedEntry))) {
                 newLexicalEntries += 1
-                AbstractLearner.LOG.info("Added (linked) LexicalEntry to model: %s [%s]", linkedEntry, model.getTheta.printValues(model.computeFeatures(linkedEntry)))
+                log.info(s"Added (linked) LexicalEntry to model: $linkedEntry [${model.getTheta.printValues(model.computeFeatures(linkedEntry))}]")
               }
             }
           }
@@ -212,7 +231,7 @@ abstract class AbstractLearnerScala[SAMPLE <: IDataItem[_],
       parserOutput
     }
     else { // Skip lexical induction
-      AbstractLearner.LOG.info("Skipped GENLEX step. No generated lexical items.")
+      log.info("Skipped GENLEX step. No generated lexical items.")
       null
     }
   }
@@ -228,7 +247,7 @@ abstract class AbstractLearnerScala[SAMPLE <: IDataItem[_],
     var isGold: Boolean = false
     if (isGoldDebugCorrect(dataItem, parse.getSemantics)) isGold = true
     else isGold = false
-    AbstractLearner.LOG.info("%s%s[%.2f%s] %s", if (isGold) "* "
+    log.info("%s%s[%.2f%s] %s", if (isGold) "* "
     else "  ", if (tag == null) ""
     else tag + " ", parse.getScore, if (valid == null) ""
     else if (valid) ", V"
@@ -236,7 +255,7 @@ abstract class AbstractLearnerScala[SAMPLE <: IDataItem[_],
     if (verbose) {
       import scala.collection.JavaConversions._
       for (step <- parse.getMaxSteps) {
-        AbstractLearner.LOG.info("\t%s", step.toString(false, false, dataItemModel.getTheta))
+        log.info("\t%s", step.toString(false, false, dataItemModel.getTheta))
       }
     }
   }
@@ -244,7 +263,12 @@ abstract class AbstractLearnerScala[SAMPLE <: IDataItem[_],
   /**
     * Parameter update method.
     */
-  protected def parameterUpdate(dataItem: DI, realOutput: PO, goodOutput: PO, model: Model[SAMPLE, MR], itemCounter: Int, epochNumber: Int): Unit
+  protected def parameterUpdate(dataItem: DI,
+                                realOutput: PO,
+                                goodOutput: PO,
+                                model: Model[SAMPLE, MR],
+                                itemCounter: Int,
+                                epochNumber: Int): Unit
 
   /**
     * Unconstrained parsing method.
@@ -259,7 +283,11 @@ abstract class AbstractLearnerScala[SAMPLE <: IDataItem[_],
   /**
     * Constrained parsing method for lexical generation.
     */
-  protected def parse(dataItem: DI, pruningFilter: Predicate[ParsingOp[MR]], dataItemModel: IDataItemModel[MR], generatedLexicon: ILexiconImmutable[MR], beamSize: Integer): PO
+  protected def parse(dataItem: DI,
+                      pruningFilter: Predicate[ParsingOp[MR]],
+                      dataItemModel: IDataItemModel[MR],
+                      generatedLexicon: ILexiconImmutable[MR],
+                      beamSize: Integer): PO
 
   /**
     * Validation method.

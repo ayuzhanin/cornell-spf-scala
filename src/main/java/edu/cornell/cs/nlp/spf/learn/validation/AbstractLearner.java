@@ -180,16 +180,13 @@ public abstract class AbstractLearner<SAMPLE extends IDataItem<?>, DI extends IL
 				final long startTime = System.currentTimeMillis();
 
 				// Log sample header
-				LOG.info("%d : ================== [%d]", ++itemCounter,
-						epochNumber);
-				LOG.info("Sample type: %s",
-						dataItem.getClass().getSimpleName());
+				LOG.info("%d : ================== [%d]", ++itemCounter, epochNumber);
+				LOG.info("Sample type: %s", dataItem.getClass().getSimpleName());
 				LOG.info("%s", dataItem);
 
 				// Skip sample, if over the length limit
 				if (!processingFilter.test(dataItem)) {
-					LOG.info(
-							"Skipped training sample, due to processing filter");
+					LOG.info("Skipped training sample, due to processing filter");
 					continue;
 				}
 
@@ -197,8 +194,7 @@ public abstract class AbstractLearner<SAMPLE extends IDataItem<?>, DI extends IL
 
 				try {
 					// Data item model
-					final IDataItemModel<MR> dataItemModel = model
-							.createDataItemModel(dataItem.getSample());
+					final IDataItemModel<MR> dataItemModel = model.createDataItemModel(dataItem.getSample());
 
 					// ///////////////////////////
 					// Step I: Parse with current model. If we get a valid
@@ -207,35 +203,24 @@ public abstract class AbstractLearner<SAMPLE extends IDataItem<?>, DI extends IL
 
 					// Parse with current model and record some statistics
 					final PO parserOutput = parse(dataItem, dataItemModel);
-					stats.mean("Model parse",
-							parserOutput.getParsingTime() / 1000.0, "sec");
-					parserOutputLogger.log(parserOutput, dataItemModel, String
-							.format("train-%d-%d", epochNumber, itemCounter));
+					stats.mean("Model parse", parserOutput.getParsingTime() / 1000.0, "sec");
+					parserOutputLogger.log(parserOutput, dataItemModel, String.format("train-%d-%d", epochNumber, itemCounter));
 
-					final List<? extends IDerivation<MR>> modelParses = parserOutput
-							.getAllDerivations();
+					final List<? extends IDerivation<MR>> modelParses = parserOutput.getAllDerivations();
 
-					LOG.info("Model parsing time: %.4fsec",
-							parserOutput.getParsingTime() / 1000.0);
-					LOG.info("Output is %s",
-							parserOutput.isExact() ? "exact" : "approximate");
-					LOG.info("Created %d model parses for training sample:",
-							modelParses.size());
+					LOG.info("Model parsing time: %.4fsec", parserOutput.getParsingTime() / 1000.0);
+					LOG.info("Output is %s", parserOutput.isExact() ? "exact" : "approximate");
+					LOG.info("Created %d model parses for training sample:", modelParses.size());
 					for (final IDerivation<MR> parse : modelParses) {
-						logParse(dataItem, parse,
-								validate(dataItem, parse.getSemantics()), true,
-								dataItemModel);
+						logParse(dataItem, parse, validate(dataItem, parse.getSemantics()), true, dataItemModel);
 					}
 
 					// Create a list of all valid parses
-					final List<? extends IDerivation<MR>> validParses = getValidParses(
-							parserOutput, dataItem);
+					final List<? extends IDerivation<MR>> validParses = getValidParses(parserOutput, dataItem);
 
-					// If has a valid parse, call parameter update procedure
-					// and continue
+					// If has a valid parse, call parameter update procedure and continue
 					if (!validParses.isEmpty() && errorDriven) {
-						parameterUpdate(dataItem, parserOutput, parserOutput,
-								model, itemCounter, epochNumber);
+						parameterUpdate(dataItem, parserOutput, parserOutput, model, itemCounter, epochNumber);
 						continue;
 					}
 
@@ -249,40 +234,25 @@ public abstract class AbstractLearner<SAMPLE extends IDataItem<?>, DI extends IL
 						continue;
 					}
 
-					final PO generationParserOutput = lexicalInduction(dataItem,
-							itemCounter, dataItemModel, model, epochNumber);
+					final PO generationParserOutput = lexicalInduction(dataItem, itemCounter, dataItemModel, model, epochNumber);
 
 					// ///////////////////////////
 					// Step III: Update parameters
 					// ///////////////////////////
 
-					if (conflateGenlexAndPrunedParses
-							&& generationParserOutput != null) {
-						parameterUpdate(dataItem, parserOutput,
-								generationParserOutput, model, itemCounter,
-								epochNumber);
+					if (conflateGenlexAndPrunedParses && generationParserOutput != null) {
+						parameterUpdate(dataItem, parserOutput, generationParserOutput, model, itemCounter, epochNumber);
 					} else {
-						final PO prunedParserOutput = parse(dataItem,
-								parsingFilterFactory.create(dataItem),
-								dataItemModel);
-						LOG.info("Conditioned parsing time: %.4fsec",
-								prunedParserOutput.getParsingTime() / 1000.0);
-						parserOutputLogger.log(prunedParserOutput,
-								dataItemModel,
-								String.format("train-%d-%d-conditioned",
-										epochNumber, itemCounter));
-						parameterUpdate(dataItem, parserOutput,
-								prunedParserOutput, model, itemCounter,
-								epochNumber);
+						final PO prunedParserOutput = parse(dataItem, parsingFilterFactory.create(dataItem), dataItemModel);
+						LOG.info("Conditioned parsing time: %.4fsec", prunedParserOutput.getParsingTime() / 1000.0);
+						parserOutputLogger.log(prunedParserOutput, dataItemModel, String.format("train-%d-%d-conditioned", epochNumber, itemCounter));
+						parameterUpdate(dataItem, parserOutput, prunedParserOutput, model, itemCounter, epochNumber);
 					}
 
 				} finally {
 					// Record statistics.
-					stats.mean("Sample processing",
-							(System.currentTimeMillis() - startTime) / 1000.0,
-							"sec");
-					LOG.info("Total sample handling time: %.4fsec",
-							(System.currentTimeMillis() - startTime) / 1000.0);
+					stats.mean("Sample processing", (System.currentTimeMillis() - startTime) / 1000.0, "sec");
+					LOG.info("Total sample handling time: %.4fsec", (System.currentTimeMillis() - startTime) / 1000.0);
 				}
 			}
 
@@ -293,58 +263,46 @@ public abstract class AbstractLearner<SAMPLE extends IDataItem<?>, DI extends IL
 		}
 	}
 
-	private List<? extends IDerivation<MR>> getValidParses(PO parserOutput,
-			final DI dataItem) {
-		final List<? extends IDerivation<MR>> parses = new LinkedList<IDerivation<MR>>(
-				parserOutput.getAllDerivations());
+	private List<? extends IDerivation<MR>> getValidParses(PO parserOutput, final DI dataItem) {
 
-		// Use validation function to prune generation parses. Syntax is not
-		// used to distinguish between derivations.
-		CollectionUtils.filterInPlace(parses,
-				e -> validate(dataItem, e.getSemantics()));
+		final List<? extends IDerivation<MR>> parses = new LinkedList<IDerivation<MR>>(parserOutput.getAllDerivations());
+
+		// Use validation function to prune generation parses. Syntax is not used to distinguish between derivations.
+		CollectionUtils.filterInPlace(parses, e -> validate(dataItem, e.getSemantics()));
 		return parses;
 	}
 
-	private PO lexicalInduction(final DI dataItem, int dataItemNumber,
-			IDataItemModel<MR> dataItemModel, Model<SAMPLE, MR> model,
-			int epochNumber) {
+	private PO lexicalInduction(final DI dataItem,
+								int dataItemNumber,
+								IDataItemModel<MR> dataItemModel,
+								Model<SAMPLE, MR> model,
+								int epochNumber) {
 		// Generate lexical entries
-		final ILexiconImmutable<MR> generatedLexicon = genlex.generate(dataItem,
-				model, categoryServices);
+		final ILexiconImmutable<MR> generatedLexicon = genlex.generate(dataItem, model, categoryServices);
 		LOG.info("Generated lexicon size = %d", generatedLexicon.size());
 
 		if (generatedLexicon.size() > 0) {
 			// Case generated lexical entries
 
 			// Create pruning filter, if the data item fits
-			final Predicate<ParsingOp<MR>> pruningFilter = parsingFilterFactory
-					.create(dataItem);
+			final Predicate<ParsingOp<MR>> pruningFilter = parsingFilterFactory.create(dataItem);
 
 			// Parse with generated lexicon
-			final PO parserOutput = parse(dataItem, pruningFilter,
-					dataItemModel, generatedLexicon, lexiconGenerationBeamSize);
+			final PO parserOutput = parse(dataItem, pruningFilter, dataItemModel, generatedLexicon, lexiconGenerationBeamSize);
 
 			// Log lexical generation parsing time
-			stats.mean("genlex parse", parserOutput.getParsingTime() / 1000.0,
-					"sec");
-			LOG.info("Lexicon induction parsing time: %.4fsec",
-					parserOutput.getParsingTime() / 1000.0);
-			LOG.info("Output is %s",
-					parserOutput.isExact() ? "exact" : "approximate");
+			stats.mean("genlex parse", parserOutput.getParsingTime() / 1000.0, "sec");
+			LOG.info("Lexicon induction parsing time: %.4fsec", parserOutput.getParsingTime() / 1000.0);
+			LOG.info("Output is %s", parserOutput.isExact() ? "exact" : "approximate");
 
 			// Log generation parser output
-			parserOutputLogger.log(parserOutput, dataItemModel, String
-					.format("train-%d-%d-genlex", epochNumber, dataItemNumber));
+			parserOutputLogger.log(parserOutput, dataItemModel, String.format("train-%d-%d-genlex", epochNumber, dataItemNumber));
 
-			LOG.info("Created %d lexicon generation parses for training sample",
-					parserOutput.getAllDerivations().size());
+			LOG.info("Created %d lexicon generation parses for training sample", parserOutput.getAllDerivations().size());
 
 			// Get valid lexical generation parses
-			final List<? extends IDerivation<MR>> validParses = getValidParses(
-					parserOutput, dataItem);
-			LOG.info("Removed %d invalid parses",
-					parserOutput.getAllDerivations().size()
-							- validParses.size());
+			final List<? extends IDerivation<MR>> validParses = getValidParses(parserOutput, dataItem);
+			LOG.info("Removed %d invalid parses", parserOutput.getAllDerivations().size() - validParses.size());
 
 			// Collect max scoring valid generation parses
 			final List<IDerivation<MR>> bestGenerationParses = new LinkedList<IDerivation<MR>>();
