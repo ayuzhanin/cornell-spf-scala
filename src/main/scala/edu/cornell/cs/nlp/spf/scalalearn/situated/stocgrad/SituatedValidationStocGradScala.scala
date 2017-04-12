@@ -1,4 +1,4 @@
-package edu.cornell.sc.nlp.spf.scalalearn.situated.stocgrad
+package edu.cornell.cs.nlp.spf.scalalearn.situated.stocgrad
 
 import edu.cornell.cs.nlp.spf.base.hashvector.{HashVectorFactory, IHashVector}
 import edu.cornell.cs.nlp.spf.ccg.categories.ICategoryServices
@@ -19,17 +19,17 @@ import edu.cornell.cs.nlp.spf.parser.joint.{IJointOutput, IJointOutputLogger}
 import edu.cornell.cs.nlp.utils.composites.Pair
 import edu.cornell.cs.nlp.utils.filter.IFilter
 import edu.cornell.cs.nlp.utils.log.{ILogger, LoggerFactory}
-import edu.cornell.sc.nlp.spf.scalalearn.situated.AbstractSituatedLearnerImpl
-import edu.cornell.sc.nlp.spf.scalalearn.situated.AbstractSituatedLearnerImpl._
+import edu.cornell.sc.nlp.spf.scalalearn.situated.AbstractSituatedLearnerScala
+import edu.cornell.sc.nlp.spf.scalalearn.situated.AbstractSituatedLearnerScala._
 
-object SituatedValidationStocGradImpl {
+object SituatedValidationStocGradScala {
 
   class Creator[SAMPLE <: ISituatedDataItem[Sentence, _],
                 MR,
                 ESTEP,
                 ERESULT,
                 DI <: ISituatedDataItem[SAMPLE, _]](val name: String)
-      extends IResourceObjectCreator[SituatedValidationStocGradImpl[SAMPLE, MR, ESTEP, ERESULT, DI]] {
+      extends IResourceObjectCreator[SituatedValidationStocGradScala[SAMPLE, MR, ESTEP, ERESULT, DI]] {
 
     def this() = {
       this("learner.situated.valid.stocgrad")
@@ -37,7 +37,7 @@ object SituatedValidationStocGradImpl {
 
     @SuppressWarnings("unchecked")
     override def create(params: ParameterizedExperiment#Parameters,
-                        repo: IResourceRepository): SituatedValidationStocGradImpl[SAMPLE, MR, ESTEP, ERESULT, DI] = {
+                        repo: IResourceRepository): SituatedValidationStocGradScala[SAMPLE, MR, ESTEP, ERESULT, DI] = {
 
       val numIterations =
         if (params.contains("iter")) params.get("iter").toInt
@@ -78,7 +78,7 @@ object SituatedValidationStocGradImpl {
             repo.get(params.get("genlex")).asInstanceOf[ILexiconGenerator[DI, MR, IJointModelImmutable[SAMPLE, MR, ESTEP]]])
         else (null, null)
 
-      new SituatedValidationStocGradImpl[SAMPLE, MR, ESTEP, ERESULT, DI](
+      new SituatedValidationStocGradScala[SAMPLE, MR, ESTEP, ERESULT, DI](
         numIterations,
         trainingData,
         new java.util.HashMap[DI, Pair[MR, ERESULT]],
@@ -96,7 +96,7 @@ object SituatedValidationStocGradImpl {
 
     override def `type`: String = name
 
-    override def usage: ResourceUsage = new ResourceUsage.Builder(`type`, classOf[SituatedValidationStocGradImpl[SAMPLE, MR, ESTEP, ERESULT, DI]])
+    override def usage: ResourceUsage = new ResourceUsage.Builder(`type`, classOf[SituatedValidationStocGradScala[SAMPLE, MR, ESTEP, ERESULT, DI]])
       .setDescription("Validation senstive stochastic gradient for situated learning of models with situated inference (cite: Artzi and Zettlemoyer 2013)")
       .addParam("c", "double", "Learing rate c parameter, temperature=alpha_0/(1+c*tot_number_of_training_instances)")
       .addParam("alpha0", "double", "Learing rate alpha0 parameter, temperature=alpha_0/(1+c*tot_number_of_training_instances)")
@@ -119,7 +119,7 @@ object SituatedValidationStocGradImpl {
   * {@link SituatedValidationPerceptron}.
   */
 
-class SituatedValidationStocGradImpl[SAMPLE <: ISituatedDataItem[Sentence, _],
+class SituatedValidationStocGradScala[SAMPLE <: ISituatedDataItem[Sentence, _],
                                     MR,
                                     ESTEP,
                                     ERESULT,
@@ -136,7 +136,7 @@ class SituatedValidationStocGradImpl[SAMPLE <: ISituatedDataItem[Sentence, _],
                                       val validator: IValidator[DI, ERESULT],
                                       override val categoryServices: ICategoryServices[MR],
                                       override val genlex: ILexiconGenerator[DI, MR, IJointModelImmutable[SAMPLE, MR, ESTEP]])
-  extends AbstractSituatedLearnerImpl[SAMPLE, MR, ESTEP, ERESULT, DI](numIterations,
+  extends AbstractSituatedLearnerScala[SAMPLE, MR, ESTEP, ERESULT, DI](numIterations,
                                                                   trainingData,
                                                                   trainingDataDebug,
                                                                   maxSentenceLength,
@@ -146,7 +146,7 @@ class SituatedValidationStocGradImpl[SAMPLE <: ISituatedDataItem[Sentence, _],
                                                                   categoryServices,
                                                                   genlex) {
 
-  override val log: ILogger = LoggerFactory.create(classOf[SituatedValidationStocGradImpl[SAMPLE, MR, ESTEP, ERESULT, DI]])
+  override val log: ILogger = LoggerFactory.create(classOf[SituatedValidationStocGradScala[SAMPLE, MR, ESTEP, ERESULT, DI]])
 
   log.info(s"Init SituatedValidationSensitiveStocGrad: numIterations=$numIterations, trainingData.size=${trainingData.size}, trainingDataDebug.size=${trainingDataDebug.size}, maxSentenceLength=$maxSentenceLength ...")
   log.info(s"Init SituatedValidationSensitiveStocGrad: ... lexiconGenerationBeamSize=$lexiconGenerationBeamSize, alpah0=$alpha0, c=$c")
@@ -250,6 +250,7 @@ class SituatedValidationStocGradImpl[SAMPLE <: ISituatedDataItem[Sentence, _],
     }
   }
 
-  override protected def validate(dataItem: DI, hypothesis: ERESULT): Boolean = validator.isValid(dataItem, hypothesis)
+  override protected def validate(dataItem: DI, hypothesis: ERESULT): Boolean =
+    validator.isValid(dataItem, hypothesis)
 }
 

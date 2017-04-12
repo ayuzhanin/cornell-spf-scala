@@ -1,4 +1,4 @@
-package edu.cornell.sc.nlp.spf.scalalearn.situated.perceptron
+package edu.cornell.cs.nlp.spf.scalalearn.situated.perceptron
 
 import edu.cornell.cs.nlp.spf.base.hashvector.HashVectorFactory
 import edu.cornell.cs.nlp.spf.ccg.categories.ICategoryServices
@@ -42,7 +42,7 @@ import scala.collection.JavaConverters._
   *          Training data item.
   */
 
-class SituatedValidationPerceptronImpl[SAMPLE <: ISituatedDataItem[Sentence, _], MR, ESTEP, ERESULT, DI <: ILabeledDataItem[SAMPLE, _]]
+class SituatedValidationPerceptronScala[SAMPLE <: ISituatedDataItem[Sentence, _], MR, ESTEP, ERESULT, DI <: ILabeledDataItem[SAMPLE, _]]
                                         (numIterations: Int,
                                          margin: Double,
                                          trainingData: IDataCollection[DI],
@@ -67,10 +67,9 @@ class SituatedValidationPerceptronImpl[SAMPLE <: ISituatedDataItem[Sentence, _],
 
   type JointDerivation = IJointDerivation[MR, ERESULT]
   type ParsesJava = java.util.List[JointDerivation]
-  type ParsesPair = edu.cornell.cs.nlp.utils.composites.Pair[ParsesJava, ParsesJava]
   type JModel = JointModel[SAMPLE, MR, ESTEP]
 
-  val log = LoggerFactory.create(classOf[SituatedValidationPerceptronImpl[SAMPLE,MR, ESTEP, ERESULT, DI]])
+  val log = LoggerFactory.create(classOf[SituatedValidationPerceptronScala[SAMPLE,MR, ESTEP, ERESULT, DI]])
 
   private def constructUpdate(violatingValidParses: Seq[JointDerivation], violatingInvalidParses: Seq[JointDerivation], model: JModel) = {
 
@@ -116,25 +115,25 @@ class SituatedValidationPerceptronImpl[SAMPLE <: ISituatedDataItem[Sentence, _],
     val invalids = invalidParses.map((_, false))
 
     val violatingParses = valids.foldLeft((List.empty[JointDerivation], invalids)) {
-      case ((violatingValidParsesInner, invalidParsesWithFlags), validParse) =>
+      case ((violatingValidsInner, invalidsWithFlags), validParse) =>
         var isValidViolating = false
-        val invalidParsesWithFlagsUpdated = invalidParsesWithFlags.map { case (invalidParse, invalidParseFlag) =>
-          val featureDelta = validParse.getMeanMaxFeatures.addTimes(-1.0, invalidParse.getMeanMaxFeatures)
+        val invalidsWithUpdatedFlags = invalidsWithFlags.map { case (invalid, flag) =>
+          val featureDelta = validParse.getMeanMaxFeatures.addTimes(-1.0, invalid.getMeanMaxFeatures)
           val deltaScore = model score featureDelta
           val threshold = margin * featureDelta.l1Norm()
-          if (deltaScore < threshold) {isValidViolating = true; (invalidParse, true)}
-          else (invalidParse, invalidParseFlag)
+          if (deltaScore < threshold) {isValidViolating = true; (invalid, true)}
+          else (invalid, flag)
         }
-        val violatingValidParsesUpdated =
-          if (isValidViolating) violatingValidParsesInner :+ validParse
-          else violatingValidParsesInner
-        (violatingValidParsesUpdated, invalidParsesWithFlagsUpdated)
+        val violatingValidsUpdated =
+          if (isValidViolating) violatingValidsInner :+ validParse
+          else violatingValidsInner
+        (violatingValidsUpdated, invalidsWithUpdatedFlags)
     }
 
-    val (violatingValidParses, violatingInvalidParsesCandidates) = violatingParses
-    val violatingInvalidParses = violatingInvalidParsesCandidates.filter(_._2).map(_._1)
+    val (violatingValids, violatingInvalidsCandidates) = violatingParses
+    val violatingInvalids = violatingInvalidsCandidates.filter(_._2).map(_._1)
 
-    (violatingValidParses.toList, violatingInvalidParses.toList)
+    (violatingValids.toList, violatingInvalids.toList)
   }
 
   override protected def parameterUpdate(dataItem: DI,
@@ -212,7 +211,7 @@ class SituatedValidationPerceptronImpl[SAMPLE <: ISituatedDataItem[Sentence, _],
 
 }
 
-object SituatedValidationPerceptronImpl {
+object SituatedValidationPerceptronScala {
 
   case class Builder[SAMPLE <: ISituatedDataItem[Sentence, _],
                     MR,
@@ -267,8 +266,8 @@ object SituatedValidationPerceptronImpl {
       * Mapping a subset of training samples into their gold label for debug.
       */
 
-    def build(): SituatedValidationPerceptronImpl[SAMPLE, MR, ESTEP, ERESULT, DI] =
-      new SituatedValidationPerceptronImpl(
+    def build(): SituatedValidationPerceptronScala[SAMPLE, MR, ESTEP, ERESULT, DI] =
+      new SituatedValidationPerceptronScala(
         numIterations, margin, trainingData, trainingDataDebug,
         maxSentenceLength, lexiconGenerationBeamSize, parser,
         hardUpdates, parserOutputLogger, validator,
@@ -277,9 +276,9 @@ object SituatedValidationPerceptronImpl {
 
 
   case class Creator[SAMPLE <: ISituatedDataItem[Sentence, _], MR, ESTEP, ERESULT, DI <: ILabeledDataItem [SAMPLE, _]]()
-   extends IResourceObjectCreator[SituatedValidationPerceptronImpl[SAMPLE, MR, ESTEP, ERESULT, DI]] {
+   extends IResourceObjectCreator[SituatedValidationPerceptronScala[SAMPLE, MR, ESTEP, ERESULT, DI]] {
 
-    override def create(params: ParameterizedExperiment#Parameters, repo: IResourceRepository): SituatedValidationPerceptronImpl[SAMPLE, MR, ESTEP, ERESULT, DI] = {
+    override def create(params: ParameterizedExperiment#Parameters, repo: IResourceRepository): SituatedValidationPerceptronScala[SAMPLE, MR, ESTEP, ERESULT, DI] = {
 
 
       val trainingData = repo.get(params.get("data"))

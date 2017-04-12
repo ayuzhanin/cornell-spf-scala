@@ -1,4 +1,4 @@
-package edu.cornell.sc.nlp.spf.scalalearn.simple
+package edu.cornell.cs.nlp.spf.scalalearn.simple
 
 import edu.cornell.cs.nlp.spf.base.hashvector.HashVectorFactory
 import edu.cornell.cs.nlp.spf.data.collection.IDataCollection

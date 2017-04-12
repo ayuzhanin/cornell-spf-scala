@@ -1,4 +1,4 @@
-package edu.cornell.sc.nlp.spf.scalalearn.situated
+package edu.cornell.cs.nlp.spf.scalalearn.situated
 
 import edu.cornell.cs.nlp.spf.ccg.categories.ICategoryServices
 import edu.cornell.cs.nlp.spf.data.ILabeledDataItem
@@ -17,13 +17,13 @@ import edu.cornell.cs.nlp.utils.system.MemoryReport
 import scala.collection.JavaConverters._
 
 
-object AbstractSituatedLearnerImpl {
+object AbstractSituatedLearnerScala {
   val GOLD_LF_IS_MAX: String = "G"
   val HAS_VALID_LF: String = "V"
   val TRIGGERED_UPDATE: String = "U"
 }
 
-abstract class AbstractSituatedLearnerImpl[SAMPLE <: ISituatedDataItem[Sentence, _],
+abstract class AbstractSituatedLearnerScala[SAMPLE <: ISituatedDataItem[Sentence, _],
                                         MR,
                                         ESTEP,
                                         ERESULT,
@@ -42,7 +42,7 @@ abstract class AbstractSituatedLearnerImpl[SAMPLE <: ISituatedDataItem[Sentence,
   type JModel = JointModel[SAMPLE, MR, ESTEP]
   type JointDerivation = IJointDerivation[MR, ERESULT]
 
-  import AbstractSituatedLearnerImpl._
+  import AbstractSituatedLearnerScala._
 
   protected val stats: LearningStats = new LearningStats.Builder(trainingData.size())
     .addStat(HAS_VALID_LF, "Has a valid parse")
@@ -51,7 +51,7 @@ abstract class AbstractSituatedLearnerImpl[SAMPLE <: ISituatedDataItem[Sentence,
     .setNumberStat("Number of new lexical entries added for sample")
     .build()
 
-  val log = LoggerFactory.create(classOf[AbstractSituatedLearnerImpl[SAMPLE, MR, ESTEP, ERESULT, DI]])
+  val log = LoggerFactory.create(classOf[AbstractSituatedLearnerScala[SAMPLE, MR, ESTEP, ERESULT, DI]])
 
   override def train(model: JModel): Unit = {
     // Init GENLEX.

@@ -158,46 +158,36 @@ public class ValidationPerceptron<SAMPLE extends IDataItem<?>, DI extends ILabel
         final List<P> violatingValidParses = new LinkedList<P>();
         final List<P> violatingInvalidParses = new LinkedList<P>();
 
-        // Flags to mark that we inserted a parse into the violating
-        // sets, so no need to check for its violation against others
+        // Flags to mark that we inserted a parse into the violating sets, so no need to check for its violation against others
         final boolean[] validParsesFlags = new boolean[validParses.size()];
         final boolean[] invalidParsesFlags = new boolean[invalidParses.size()];
         int validParsesCounter = 0;
         for (final P validParse : validParses) {
             int invalidParsesCounter = 0;
             for (final P invalidParse : invalidParses) {
-                if (!validParsesFlags[validParsesCounter]
-                        || !invalidParsesFlags[invalidParsesCounter]) {
-                    // Create the delta vector if needed, we do it only
-                    // once. This is why we check if we are going to
-                    // need it in the above 'if'.
+                if (!validParsesFlags[validParsesCounter] || !invalidParsesFlags[invalidParsesCounter]) {
+                    // Create the delta vector if needed, we do it only once.
+                    // This is why we check if we are going to need it in the above 'if'.
                     final IHashVector featureDelta = validParse
-                            .getAverageMaxFeatureVector().addTimes(-1.0,
-                                    invalidParse.getAverageMaxFeatureVector());
+                            .getAverageMaxFeatureVector().addTimes(-1.0, invalidParse.getAverageMaxFeatureVector());
                     final double deltaScore = model.score(featureDelta);
 
-                    // Test valid parse for insertion into violating
-                    // valid parses
+                    // Test valid parse for insertion into violating valid parses
                     if (!validParsesFlags[validParsesCounter]) {
-                        // Case this valid sample is still not in the
-                        // violating set
+                        // Case this valid sample is still not in the violating set
                         if (deltaScore < margin * featureDelta.l1Norm()) {
-                            // Case of violation
-                            // Add to the violating set
+                            // Case of violation. Add to the violating set
                             violatingValidParses.add(validParse);
                             // Mark flag, so we won't test it again
                             validParsesFlags[validParsesCounter] = true;
                         }
                     }
 
-                    // Test invalid parse for insertion into
-                    // violating invalid parses
+                    // Test invalid parse for insertion into violating invalid parses
                     if (!invalidParsesFlags[invalidParsesCounter]) {
-                        // Case this invalid sample is still not in
-                        // the violating set
+                        // Case this invalid sample is still not in the violating set
                         if (deltaScore < margin * featureDelta.l1Norm()) {
-                            // Case of violation
-                            // Add to the violating set
+                            // Case of violation. Add to the violating set
                             violatingInvalidParses.add(invalidParse);
                             // Mark flag, so we won't test it again
                             invalidParsesFlags[invalidParsesCounter] = true;
