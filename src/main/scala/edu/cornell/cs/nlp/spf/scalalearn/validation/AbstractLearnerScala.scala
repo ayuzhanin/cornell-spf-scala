@@ -1,7 +1,5 @@
 package edu.cornell.cs.nlp.spf.scalalearn.validation
 
-import java.util
-import java.util.{LinkedList, List, Map}
 import java.util.function.Predicate
 
 import edu.cornell.cs.nlp.spf.ccg.categories.ICategoryServices
@@ -18,6 +16,7 @@ import edu.cornell.cs.nlp.utils.log.{ILogger, LoggerFactory}
 import edu.cornell.cs.nlp.utils.system.MemoryReport
 
 import scala.collection.JavaConverters._
+import scala.util.Try
 
 object AbstractLearnerScala {
   protected val GOLD_LF_IS_MAX: String = "G"
@@ -30,7 +29,7 @@ abstract class AbstractLearnerScala[SAMPLE <: IDataItem[_],
                                     PO <: IParserOutput[MR],
                                     MR] protected(val epochs: Int,
                                                    val trainingData: IDataCollection[DI],
-                                                   val trainingDataDebug: util.Map[DI, MR],
+                                                   val trainingDataDebug: Map[DI, MR],
                                                    val lexiconGenerationBeamSize: Integer,
                                                    val parserOutputLogger: IOutputLogger[MR],
                                                    val conflateGenlexAndPrunedParses: Boolean,
@@ -72,7 +71,7 @@ abstract class AbstractLearnerScala[SAMPLE <: IDataItem[_],
         // Process a single training sample
 
         // Record start time
-        val startTime: Long = System.currentTimeMillis
+        val startTime = System.currentTimeMillis
 
         // Log sample header
         log.info(s"$itemCounter : ================== [$epochNumber]")
@@ -80,79 +79,77 @@ abstract class AbstractLearnerScala[SAMPLE <: IDataItem[_],
         log.info(dataItem.toString)
 
         // Skip sample, if over the length limit
-        if (!processingFilter.test(dataItem)) {
+        if (!processingFilter.test(dataItem))
           log.info("Skipped training sample, due to processing filter")
-          continue //todo: continue is not supported
-        }
 
-        stats.count("Processed", epochNumber)
+        else {
 
-        try
-          // Data item model
-          val dataItemModel: IDataItemModel[MR] = model.createDataItemModel(dataItem.getSample)
+          stats.count("Processed", epochNumber)
 
-          // ///////////////////////////
-          // Step I: Parse with current model. If we get a valid
-          // parse, update parameters.
-          // ///////////////////////////
+          Try {
+            // Data item model
+            val dataItemModel: IDataItemModel[MR] = model.createDataItemModel(dataItem.getSample)
 
-          // Parse with current model and record some statistics
-          val parserOutput: PO = parse(dataItem, dataItemModel)
-          stats.mean("Model parse", parserOutput.getParsingTime / 1000.0, "sec")
-          parserOutputLogger.log(parserOutput, dataItemModel, s"train-$epochNumber-$itemCounter")
+            // ///////////////////////////
+            // Step I: Parse with current model. If we get a valid
+            // parse, update parameters.
+            // ///////////////////////////
 
-          val modelParses = parserOutput.getAllDerivations.asScala
-          log.info(s"Model parsing time: ${parserOutput.getParsingTime / 1000.0}")
-          log.info(s"Output is ${if (parserOutput.isExact) "exact" else "approximate"}")
-          log.info(s"Created ${modelParses.size} model parses for training sample:")
+            // Parse with current model and record some statistics
+            val parserOutput: PO = parse(dataItem, dataItemModel)
+            stats.mean("Model parse", parserOutput.getParsingTime / 1000.0, "sec")
+            parserOutputLogger.log(parserOutput, dataItemModel, s"train-$epochNumber-$itemCounter")
 
-          modelParses.foreach(parse => logParse(dataItem, parse, validate(dataItem, parse.getSemantics), verbose = true, dataItemModel = dataItemModel))
+            val modelParses = parserOutput.getAllDerivations.asScala
+            log.info(s"Model parsing time: ${parserOutput.getParsingTime / 1000.0}")
+            log.info(s"Output is ${if (parserOutput.isExact) "exact" else "approximate"}")
+            log.info(s"Created ${modelParses.size} model parses for training sample:")
 
-          // Create a list of all valid parses
-          val validParses = getValidParses(parserOutput, dataItem).asScala
+            modelParses.foreach(parse => logParse(dataItem, parse, validate(dataItem, parse.getSemantics), verbose = true, dataItemModel = dataItemModel))
 
-          // If has a valid parse, call parameter update procedure and continue
-          if (validParses.nonEmpty && errorDriven) {
-            parameterUpdate(dataItem, parserOutput, parserOutput, model, itemCounter, epochNumber)
-            continue //todo: continue is not supported
+            // Create a list of all valid parses
+            val validParses = getValidParses(parserOutput, dataItem)
+
+            // If has a valid parse, call parameter update procedure and continue
+            if (validParses.nonEmpty && errorDriven)
+              parameterUpdate(dataItem, parserOutput, parserOutput, model, itemCounter, epochNumber)
+            else {
+
+              // ///////////////////////////
+              // Step II: Generate new lexical entries, prune and update
+              // the model. Keep the parser output for Step III.
+              // ///////////////////////////
+
+              if (genlex != null) {
+                // Skip the example if not doing lexicon learning
+
+                val generationParserOutput = lexicalInduction(dataItem, itemCounter, dataItemModel, model, epochNumber)
+
+                // ///////////////////////////
+                // Step III: Update parameters
+                // ///////////////////////////
+
+                if (conflateGenlexAndPrunedParses && generationParserOutput != null)
+                  parameterUpdate(dataItem, parserOutput, generationParserOutput, model, itemCounter, epochNumber)
+                else {
+                  val prunedParserOutput: PO = parse(dataItem, parsingFilterFactory.create(dataItem), dataItemModel)
+                  log.info("Conditioned parsing time: %.4fsec", prunedParserOutput.getParsingTime / 1000.0)
+                  parserOutputLogger.log(prunedParserOutput, dataItemModel, String.format("train-%d-%d-conditioned", epochNumber, itemCounter))
+                  parameterUpdate(dataItem, parserOutput, prunedParserOutput, model, itemCounter, epochNumber)
+                }
+              }
+            }
           }
 
-
-          // ///////////////////////////
-          // Step II: Generate new lexical entries, prune and update
-          // the model. Keep the parser output for Step III.
-          // ///////////////////////////
-
-          if (genlex == null) {
-            // Skip the example if not doing lexicon learning
-            continue //todo: continue is not supported
-          }
-
-          val generationParserOutput = lexicalInduction(dataItem, itemCounter, dataItemModel, model, epochNumber)
-
-          // ///////////////////////////
-          // Step III: Update parameters
-          // ///////////////////////////
-
-          if (conflateGenlexAndPrunedParses && generationParserOutput != null)
-            parameterUpdate(dataItem, parserOutput, generationParserOutput, model, itemCounter, epochNumber)
-          else {
-            val prunedParserOutput: PO = parse(dataItem, parsingFilterFactory.create(dataItem), dataItemModel)
-            log.info("Conditioned parsing time: %.4fsec", prunedParserOutput.getParsingTime / 1000.0)
-            parserOutputLogger.log(prunedParserOutput, dataItemModel, String.format("train-%d-%d-conditioned", epochNumber, itemCounter))
-            parameterUpdate(dataItem, parserOutput, prunedParserOutput, model, itemCounter, epochNumber)
-          }
-
-        finally {
           // Record statistics.
           stats.mean("Sample processing", (System.currentTimeMillis - startTime) / 1000.0, "sec")
           log.info(s"Total sample handling time: ${(System.currentTimeMillis - startTime) / 1000.0}sec")
-        }
 
-        // Output epoch statistics
-        log.info(s"System memory: ${MemoryReport.generate}")
-        log.info("Epoch stats:")
-        log.info(stats)
+          // Output epoch statistics
+          log.info(s"System memory: ${MemoryReport.generate}")
+          log.info("Epoch stats:")
+          log.info(stats)
+        }
       }
     }
   }
@@ -184,79 +181,68 @@ abstract class AbstractLearnerScala[SAMPLE <: IDataItem[_],
       log.info(s"Created ${parserOutput.getAllDerivations.size} lexicon generation parses for training sample")
 
       // Get valid lexical generation parses
-      val validParses = getValidParses(parserOutput, dataItem)
-      log.info(s"Removed ${parserOutput.getAllDerivations.size - validParses.size} invalid parses")
+      val valids = getValidParses(parserOutput, dataItem)
+      log.info(s"Removed ${parserOutput.getAllDerivations.size - valids.size} invalid parses")
 
       // Collect max scoring valid generation parses
-      val bestGenerationParses: util.List[IDerivation[MR]] = new util.LinkedList[IDerivation[MR]]
-      var currentMaxModelScore = -java.lang.Double.MAX_VALUE
-
-      for (parse <- validParses) {
-        if (parse.getScore > currentMaxModelScore) {
-          currentMaxModelScore = parse.getScore
-          bestGenerationParses.clear()
-          bestGenerationParses.add(parse)
+      val (bestGenerationParses, _) =
+        valids.foldLeft((collection.immutable.List.empty[IDerivation[MR]], -java.lang.Double.MAX_VALUE)) { case ((acc, currentScore), parse) =>
+          if (parse.getScore > currentScore) (List(parse), parse.getScore)
+          else if (parse.getScore == currentScore) (parse :: acc, currentScore)
+          else (acc, currentScore)
         }
-        else if (parse.getScore == currentMaxModelScore) bestGenerationParses.add(parse)
-      }
+
 
       log.info(s"${bestGenerationParses.size} valid best parses for lexical generation:")
 
-      bestGenerationParses.asScala.foreach(logParse(dataItem, _, valid = true, verbose = true, dataItemModel = dataItemModel))
+      bestGenerationParses.foreach(logParse(dataItem, _, valid = true, verbose = true, dataItemModel = dataItemModel))
       // Update the model's lexicon with generated lexical entries from the max scoring valid generation parses
-      var newLexicalEntries: Int = 0
 
-      for (parse <- bestGenerationParses.asScala) {
-        for (entry <- parse.getMaxLexicalEntries.asScala) {
-          if (genlex.isGenerated(entry)) {
-            if (model.addLexEntry(LexiconGenerationServices.unmark(entry))) {
-              newLexicalEntries += 1
-              log.info(s"Added LexicalEntry to model: $entry [${model.getTheta.printValues(model.computeFeatures(entry))}]")
-            }
-            // Lexical generators might link related lexical
-            // entries, so if we add the original one, we
-            // should also add all its linked ones
-
-            for (linkedEntry <- entry.getLinkedEntries.asScala) {
-              if (model.addLexEntry(LexiconGenerationServices.unmark(linkedEntry))) {
-                newLexicalEntries += 1
-                log.info(s"Added (linked) LexicalEntry to model: $linkedEntry [${model.getTheta.printValues(model.computeFeatures(linkedEntry))}]")
-              }
-            }
+      val newLexicalEntries = bestGenerationParses.foldLeft(0) { case (newLexicalEntriesCounter, parse) =>
+        val counted = parse.getMaxLexicalEntries.asScala.foldLeft(0) { case (newLexicalEntriesCounterInner, entry) =>
+          val counter =
+            if (model.addLexEntry(LexiconGenerationServices unmark entry)) newLexicalEntriesCounterInner + 1
+            else newLexicalEntriesCounterInner
+          val linked = entry.getLinkedEntries.asScala.filter(linkedEntry => model.addLexEntry(LexiconGenerationServices unmark linkedEntry))
+          linked.foreach { linkedEntry =>
+            log.info(s"Added (linked) LexicalEntry to model: $linkedEntry [${model.getTheta.printValues(model.computeFeatures(linkedEntry))}]")
           }
+          counter + linked.size
         }
+        counted + newLexicalEntriesCounter
       }
+
       // Record statistics
       if (newLexicalEntries > 0) stats.appendSampleStat(dataItemNumber, epochNumber, newLexicalEntries)
       parserOutput
     }
-    else { // Skip lexical induction
+    else {
+      // Skip lexical induction
       log.info("Skipped GENLEX step. No generated lexical items.")
       null
     }
   }
 
-  protected def isGoldDebugCorrect(dataItem: DI, label: MR): Boolean = if (trainingDataDebug.containsKey(dataItem)) trainingDataDebug.get(dataItem) == label
-  else false
+  protected def isGoldDebugCorrect(dataItem: DI, label: MR): Boolean =
+    trainingDataDebug.get(dataItem).fold(false)(_ == label)
 
-  protected def logParse(dataItem: DI, parse: IDerivation[MR], valid: Boolean, verbose: Boolean, dataItemModel: IDataItemModel[MR]): Unit = {
+  protected def logParse(dataItem: DI,
+                         parse: IDerivation[MR],
+                         valid: Boolean,
+                         verbose: Boolean,
+                         dataItemModel: IDataItemModel[MR]): Unit =
     logParse(dataItem, parse, valid, verbose, null, dataItemModel)
-  }
 
-  protected def logParse(dataItem: DI, parse: IDerivation[MR], valid: Boolean, verbose: Boolean, tag: String, dataItemModel: IDataItemModel[MR]): Unit = {
-    var isGold: Boolean = false
-    if (isGoldDebugCorrect(dataItem, parse.getSemantics)) isGold = true
-    else isGold = false
-    log.info("%s%s[%.2f%s] %s", if (isGold) "* "
-    else "  ", if (tag == null) ""
-    else tag + " ", parse.getScore, if (valid == null) ""
-    else if (valid) ", V"
-    else ", X", parse)
+  protected def logParse(dataItem: DI,
+                         parse: IDerivation[MR],
+                         valid: Boolean,
+                         verbose: Boolean,
+                         tag: String,
+                         dataItemModel: IDataItemModel[MR]): Unit = {
+    val isGold = isGoldDebugCorrect(dataItem, parse.getSemantics)
+    log.info(s"${if (isGold) "* " else "  "}${if (tag == null) "" else tag + " "}[${parse.getScore}${if (valid) ", V" else ", X"}] $parse")
     if (verbose) {
-      import scala.collection.JavaConversions._
-      for (step <- parse.getMaxSteps) {
-        log.info("\t%s", step.toString(false, false, dataItemModel.getTheta))
-      }
+      parse.getMaxSteps.asScala.foreach(step => log.info("\t%s", step.toString(false, false, dataItemModel.getTheta)))
     }
   }
 

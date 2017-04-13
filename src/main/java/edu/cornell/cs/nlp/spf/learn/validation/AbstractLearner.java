@@ -316,48 +316,35 @@ public abstract class AbstractLearner<SAMPLE extends IDataItem<?>, DI extends IL
 					bestGenerationParses.add(parse);
 				}
 			}
-			LOG.info("%d valid best parses for lexical generation:",
-					bestGenerationParses.size());
+			LOG.info("%d valid best parses for lexical generation:", bestGenerationParses.size());
 			for (final IDerivation<MR> parse : bestGenerationParses) {
 				logParse(dataItem, parse, true, true, dataItemModel);
 			}
 
-			// Update the model's lexicon with generated lexical
-			// entries from the max scoring valid generation parses
+			// Update the model's lexicon with generated lexical entries from the max scoring valid generation parses
 			int newLexicalEntries = 0;
 			for (final IDerivation<MR> parse : bestGenerationParses) {
-				for (final LexicalEntry<MR> entry : parse
-						.getMaxLexicalEntries()) {
+				for (final LexicalEntry<MR> entry : parse.getMaxLexicalEntries()) {
 					if (genlex.isGenerated(entry)) {
-						if (model.addLexEntry(
-								LexiconGenerationServices.unmark(entry))) {
+						if (model.addLexEntry(LexiconGenerationServices.unmark(entry))) {
 							++newLexicalEntries;
-							LOG.info("Added LexicalEntry to model: %s [%s]",
-									entry, model.getTheta().printValues(
-											model.computeFeatures(entry)));
+							LOG.info("Added LexicalEntry to model: %s [%s]", entry, model.getTheta().printValues(model.computeFeatures(entry)));
 						}
-						// Lexical generators might link related lexical
-						// entries, so if we add the original one, we
-						// should also add all its linked ones
-						for (final LexicalEntry<MR> linkedEntry : entry
-								.getLinkedEntries()) {
-							if (model.addLexEntry(LexiconGenerationServices
-									.unmark(linkedEntry))) {
+
+						// Lexical generators might link related lexical entries, so if we add the original one, we should also add all its linked ones
+						for (final LexicalEntry<MR> linkedEntry : entry.getLinkedEntries()) {
+							if (model.addLexEntry(LexiconGenerationServices.unmark(linkedEntry))) {
 								++newLexicalEntries;
-								LOG.info(
-										"Added (linked) LexicalEntry to model: %s [%s]",
-										linkedEntry,
-										model.getTheta().printValues(model
-												.computeFeatures(linkedEntry)));
+								LOG.info("Added (linked) LexicalEntry to model: %s [%s]", linkedEntry, model.getTheta().printValues(model.computeFeatures(linkedEntry)));
 							}
 						}
 					}
 				}
 			}
+
 			// Record statistics
 			if (newLexicalEntries > 0) {
-				stats.appendSampleStat(dataItemNumber, epochNumber,
-						newLexicalEntries);
+				stats.appendSampleStat(dataItemNumber, epochNumber, newLexicalEntries);
 			}
 
 			return parserOutput;
