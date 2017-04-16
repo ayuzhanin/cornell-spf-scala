@@ -19,7 +19,6 @@ package edu.cornell.cs.nlp.spf.scalalearn.validation.perceptron
 import java.util.function.Predicate
 
 import scala.collection.JavaConverters._
-
 import edu.cornell.cs.nlp.spf.base.hashvector.HashVectorFactory
 import edu.cornell.cs.nlp.spf.ccg.categories.ICategoryServices
 import edu.cornell.cs.nlp.spf.ccg.lexicon.ILexiconImmutable
@@ -30,10 +29,10 @@ import edu.cornell.cs.nlp.spf.explat.{IResourceRepository, ParameterizedExperime
 import edu.cornell.cs.nlp.spf.explat.resources.IResourceObjectCreator
 import edu.cornell.cs.nlp.spf.explat.resources.usage.ResourceUsage
 import edu.cornell.cs.nlp.spf.genlex.ccg.ILexiconGenerator
-import edu.cornell.cs.nlp.spf.learn.validation.AbstractLearner
 import edu.cornell.cs.nlp.spf.parser._
 import edu.cornell.cs.nlp.spf.parser.ccg.model.{IDataItemModel, IModelImmutable, Model}
 import edu.cornell.cs.nlp.spf.parser.filter.{IParsingFilterFactory, StubFilterFactory}
+import edu.cornell.cs.nlp.spf.scalalearn.validation.AbstractLearnerScala
 import edu.cornell.cs.nlp.utils.filter.IFilter
 import edu.cornell.cs.nlp.utils.log.{ILogger, LoggerFactory}
 
@@ -60,7 +59,7 @@ import edu.cornell.cs.nlp.utils.log.{ILogger, LoggerFactory}
   * @param < MR>
   *          Meaning representation.
   */
-object ValidationPerceptronImplScala {
+object ValidationPerceptronScala {
 
   private def constructUpdate[MR, P <: IDerivation[MR],
                               MODEL <: IModelImmutable[_, MR]](violatingValidParses: List[P],
@@ -112,17 +111,29 @@ object ValidationPerceptronImplScala {
     (violatingValids, violatingInvalids)
   }
 
-  class Creator[SAMPLE <: IDataItem[_], DI <: ILabeledDataItem[SAMPLE, _], MR](val `type`: String)
-    extends IResourceObjectCreator[ValidationPerceptronImplScala[SAMPLE, DI, MR]] {
+  class Creator[SAMPLE <: IDataItem[_], DI <: ILabeledDataItem[SAMPLE, _], MR](val name: String)
+    extends IResourceObjectCreator[ValidationPerceptronScala[SAMPLE, DI, MR]] {
 
     def this() = {
       this("learner.validation.perceptron")
     }
 
     @SuppressWarnings("unchecked")
-    override def create(params: ParameterizedExperiment#Parameters, repo: IResourceRepository): ValidationPerceptronImplScala[SAMPLE, DI, MR] = {
+    override def create(params: ParameterizedExperiment#Parameters, repo: IResourceRepository): ValidationPerceptronScala[SAMPLE, DI, MR] = {
+
+      val numIterations =
+        if (params.contains("iter")) params.get("iter").toInt
+        else 4
+
       val trainingData = repo.get(params.get("data"))
-      val hardUpdates = "true" == params.get("hard")
+
+      val trainingDataDebug = new java.util.HashMap[DI, MR]
+
+      val lexiconGenerationBeamSize =
+        if (params.contains("genlexbeam")) params.get("genlexbeam").toInt
+        else 20
+
+      val parser = repo.get(ParameterizedExperiment.PARSER_RESOURCE).asInstanceOf[IParser[SAMPLE, MR]]
 
       val parserOutputLogger =
         if (params.contains("parseLogger")) repo.get(params.get("parseLogger")).asInstanceOf[IOutputLogger[MR]]
@@ -130,7 +141,13 @@ object ValidationPerceptronImplScala {
           override def log(output: IParserOutput[MR], dataItemModel: IDataItemModel[MR], tag: String): Unit = ()
         }
 
-      val parser = repo.get(ParameterizedExperiment.PARSER_RESOURCE).asInstanceOf[IParser[SAMPLE, MR]]
+      val conflateGenlexAndPrunedParses =
+        if (params.contains("conflateParses")) params.get("conflateParses").toBoolean
+        else false
+
+      val errorDriven =
+        if (params.contains("errorDriven")) params.get("errorDriven").toBoolean
+        else false
 
       val (genlex, categoryServices) =
         if (params.contains("genlex"))
@@ -138,39 +155,23 @@ object ValidationPerceptronImplScala {
             repo.get(ParameterizedExperiment.CATEGORY_SERVICES_RESOURCE).asInstanceOf[ICategoryServices[MR]])
         else (null, null)
 
-      val lexiconGenerationBeamSize =
-        if (params.contains("genlexbeam")) params.get("genlexbeam").toInt
-        else 20
-
-      val conflateGenlexAndPrunedParses =
-        if (params.contains("conflateParses")) "true" == params.get("conflateParses")
-        else false
-
-      val errorDriven =
-        if (params.contains("errorDriven")) "true" == params.get("errorDriven")
-        else false
-
       val margin =
         if (params.contains("margin")) params.get("margin").toDouble
         else 1.0
+
+      val hardUpdates = "true" == params.get("hard")
+
+      val validator = repo.get(params.get("validator")).asInstanceOf[IValidator[DI, MR]]
+
+      val processingFilter: IFilter[DI] =
+        if (params.contains("filter")) repo.get(params.get("filter")).asInstanceOf[IFilter[DI]]
+        else { (_: DI) => true }
 
       val parsingFilterFactory =
         if (params.contains("filterFactory")) repo.get(params.get("filterFactory")).asInstanceOf[IParsingFilterFactory[DI, MR]]
         else new StubFilterFactory[DI, MR]
 
-      val processingFilter: IFilter[DI] =
-        if (params.contains("filter")) repo.get(params.get("filter")).asInstanceOf[IFilter[DI]]
-        else (e: DI) => true
-
-      val numIterations =
-        if (params.contains("iter")) params.get("iter").toInt
-        else 4
-
-      val validator = repo.get(params.get("validator")).asInstanceOf[IValidator[DI, MR]]
-
-      val trainingDataDebug = new java.util.HashMap[DI, MR]
-
-      new ValidationPerceptronImplScala[SAMPLE, DI, MR](numIterations,
+      new ValidationPerceptronScala[SAMPLE, DI, MR](numIterations,
                                                   trainingData,
                                                   trainingDataDebug,
                                                   lexiconGenerationBeamSize,
@@ -187,10 +188,10 @@ object ValidationPerceptronImplScala {
                                                   parsingFilterFactory)
     }
 
-    override def `type`: String = `type`
+    override def `type`: String = name
 
     override def usage: ResourceUsage =
-      new ResourceUsage.Builder(`type`, classOf[ValidationPerceptronImplScala[_ <: IDataItem[_], _ <: ILabeledDataItem[_, _], _]])
+      new ResourceUsage.Builder(`type`, classOf[ValidationPerceptronScala[_ <: IDataItem[_], _ <: ILabeledDataItem[_, _], _]])
         .setDescription("Validation-based perceptron")
         .addParam("data", "id", "Training data")
         .addParam("genlex", "ILexiconGenerator", "GENLEX procedure")
@@ -210,26 +211,26 @@ object ValidationPerceptronImplScala {
 
 }
 
-class ValidationPerceptronImplScala[SAMPLE <: IDataItem[_],
-                              DI <: ILabeledDataItem[SAMPLE, _],
-                              MR] private(val numIterations: Int,
-                                          val trainingData: IDataCollection[DI],
-                                          val trainingDataDebug: java.util.Map[DI, MR],
-                                          val lexiconGenerationBeamSize: Int,
-                                          val parser: IParser[SAMPLE, MR],
-                                          val parserOutputLogger: IOutputLogger[MR],
-                                          val conflateGenlexAndPrunedParses: Boolean,
-                                          val errorDriven: Boolean,
-                                          val categoryServices: ICategoryServices[MR],
-                                          val genlex: ILexiconGenerator[DI, MR, IModelImmutable[SAMPLE, MR]],
-                                          val margin: Double,
-                                          val hardUpdates: Boolean,
-                                          val validator: IValidator[DI, MR],
-                                          val processingFilter: IFilter[DI],
-                                          val parsingFilterFactory: IParsingFilterFactory[DI, MR])
-  extends AbstractLearner[SAMPLE, DI, IParserOutput[MR], MR](numIterations,
+class ValidationPerceptronScala[SAMPLE <: IDataItem[_],
+                                DI <: ILabeledDataItem[SAMPLE, _],
+                                MR] private(val numIterations: Int,
+                                            override val trainingData: IDataCollection[DI],
+                                            override val trainingDataDebug: java.util.Map[DI, MR],
+                                            override val lexiconGenerationBeamSize: Int,
+                                            val parser: IParser[SAMPLE, MR],
+                                            override val parserOutputLogger: IOutputLogger[MR],
+                                            override val conflateGenlexAndPrunedParses: Boolean,
+                                            override val errorDriven: Boolean,
+                                            override val categoryServices: ICategoryServices[MR],
+                                            override val genlex: ILexiconGenerator[DI, MR, IModelImmutable[SAMPLE, MR]],
+                                            val margin: Double,
+                                            val hardUpdates: Boolean,
+                                            val validator: IValidator[DI, MR],
+                                            override val processingFilter: IFilter[DI],
+                                            override val parsingFilterFactory: IParsingFilterFactory[DI, MR])
+  extends AbstractLearnerScala[SAMPLE, DI, IParserOutput[MR], MR](numIterations,
                                                             trainingData,
-                                                            trainingDataDebug,
+                                                            trainingDataDebug.asScala.toMap,
                                                             lexiconGenerationBeamSize,
                                                             parserOutputLogger,
                                                             conflateGenlexAndPrunedParses,
@@ -239,10 +240,10 @@ class ValidationPerceptronImplScala[SAMPLE <: IDataItem[_],
                                                             processingFilter,
                                                             parsingFilterFactory) {
 
-  import AbstractLearner._
-  import ValidationPerceptronImplScala._
+  import AbstractLearnerScala._
+  import ValidationPerceptronScala._
 
-  val log: ILogger = LoggerFactory.create(classOf[ValidationPerceptronImplScala[_ <: IDataItem[_], _ <: ILabeledDataItem[_, _], _]])
+  override val log: ILogger = LoggerFactory.create(classOf[ValidationPerceptronScala[_ <: IDataItem[_], _ <: ILabeledDataItem[_, _], _]])
 
   log.info(s"Init ValidationStocGrad: numIterations=$numIterations, margin=$margin, trainingData.size()=${trainingData.size}, trainingDataDebug.size()=${trainingDataDebug.size}  ...")
   log.info(s"Init ValidationStocGrad: ... lexiconGenerationBeamSize=$lexiconGenerationBeamSize")
@@ -258,6 +259,7 @@ class ValidationPerceptronImplScala[SAMPLE <: IDataItem[_],
     * @return
     */
   private def createValidInvalidSets(dataItem: DI, realOutput: IParserOutput[MR], goodOutput: IParserOutput[MR]) = {
+
     // Collect invalid parses from readlOutput
     val invalidParses: scala.List[IDerivation[MR]] = realOutput.getAllDerivations.asScala.filter(parse => !validate(dataItem, parse.getSemantics)).toList
 
@@ -295,42 +297,41 @@ class ValidationPerceptronImplScala[SAMPLE <: IDataItem[_],
     log.info(s"${validParses.size} valid parses, ${invalidParses.size} invalid parses")
     log.info("Valid parses:")
 
-    validParses.foreach(logParse(dataItem, _, true, true, dataItemModel))
+    validParses.foreach(logParse(dataItem, _, valid = true, verbose = true, dataItemModel))
 
     // Record if the output LF equals the available gold LF (if one is available), otherwise, record using validation signal.
     if (realOutput.getBestDerivations.size == 1 && isGoldDebugCorrect(dataItem, realOutput.getBestDerivations.get(0).getSemantics))
       stats.appendSampleStat(itemCounter, epochNumber, GOLD_LF_IS_MAX)
-    else if (validParses.nonEmpty)
-      // Record if a valid parse was found.
-      stats.appendSampleStat(itemCounter, epochNumber, HAS_VALID_LF)
+    // Record if a valid parse was found.
+    else if (validParses.nonEmpty) stats.appendSampleStat(itemCounter, epochNumber, HAS_VALID_LF)
 
     if (validParses.nonEmpty) stats.count("Valid", epochNumber)
 
     // Skip update if there are no valid or invalid parses
     if (validParses.isEmpty || invalidParses.isEmpty) {
       log.info("No valid/invalid parses -- skipping")
-      return
+    } else {
+
+      val (violatingValidParses, violatingInvalidParses) = marginViolatingSets(model, margin, validParses, invalidParses)
+      log.info(s"${violatingValidParses.size} violating valid parses, ${violatingInvalidParses.size} violating invalid parses")
+      if (violatingValidParses.isEmpty) {
+        log.info("There are no violating valid/invalid parses -- skipping")
+      } else {
+
+        log.info("Violating valid parses: ")
+        violatingValidParses.foreach(logParse(dataItem, _, valid = true, verbose = true, dataItemModel))
+
+        log.info("Violating invalid parses: ")
+        violatingInvalidParses.foreach(logParse(dataItem, _, valid = false, verbose = true, dataItemModel))
+
+        // Construct weight update vector
+        val update = constructUpdate(violatingValidParses, violatingInvalidParses, model)
+        // Update the parameters vector
+        log.info(s"Update: $update")
+        update.addTimesInto(1.0, model.getTheta)
+        stats.appendSampleStat(itemCounter, epochNumber, TRIGGERED_UPDATE)
+      }
     }
-
-    val (violatingValidParses, violatingInvalidParses) = marginViolatingSets(model, margin, validParses, invalidParses)
-    log.info("%d violating valid parses, %d violating invalid parses", violatingValidParses.size, violatingInvalidParses.size)
-    if (violatingValidParses.isEmpty) {
-      log.info("There are no violating valid/invalid parses -- skipping")
-      return
-    }
-
-    log.info("Violating valid parses: ")
-    violatingValidParses.foreach(logParse(dataItem, _, true, true, dataItemModel))
-
-    log.info("Violating invalid parses: ")
-    violatingInvalidParses.foreach(logParse(dataItem, _, false, true, dataItemModel))
-
-    // Construct weight update vector
-    val update = constructUpdate(violatingValidParses, violatingInvalidParses, model)
-    // Update the parameters vector
-    log.info(s"Update: $update")
-    update.addTimesInto(1.0, model.getTheta)
-    stats.appendSampleStat(itemCounter, epochNumber, TRIGGERED_UPDATE)
   }
 
   override protected def parse(dataItem: DI, dataItemModel: IDataItemModel[MR]): IParserOutput[MR] =

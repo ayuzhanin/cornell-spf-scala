@@ -13,16 +13,21 @@ import edu.cornell.cs.nlp.utils.log.{ILogger, LoggerFactory}
 import scala.collection.JavaConverters._
 
 /**
-  * Created by a.ayuzhanin on 19/03/2017.
+  * Perceptron learner for parameter update only.
+  *
+  * @param DI
+  * @param MR
   */
-class SimplePerceptronScalaImpl(numIterations: Integer,
-                                trainingData: IDataCollection[SingleSentence],
-                                parser: IParser[Sentence, LogicalExpression])
+
+class SimplePerceptronScala(numIterations: Integer,
+                            trainingData: IDataCollection[SingleSentence],
+                            parser: IParser[Sentence, LogicalExpression])
   extends ILearner[Sentence, SingleSentence, Model[Sentence, LogicalExpression]] {
 
-  val log: ILogger = LoggerFactory.create(classOf[SimplePerceptronScalaImpl])
+  val log: ILogger = LoggerFactory.create(classOf[SimplePerceptronScala])
 
-  import SimplePerceptronScalaImpl.toImmutableSeq
+  def toImmutableSeq[T](sq: collection.mutable.Seq[T]): collection.immutable.Seq[T] =
+    collection.immutable.Seq[T](sq: _*)
 
   override def train(model: Model[Sentence, LogicalExpression]): Unit = {
 
@@ -73,9 +78,4 @@ class SimplePerceptronScalaImpl(numIterations: Integer,
     }
   }
 
-}
-
-object SimplePerceptronScalaImpl {
-  def toImmutableSeq[T](sq: collection.mutable.Seq[T]): collection.immutable.Seq[T] =
-    collection.immutable.Seq[T](sq: _*)
 }

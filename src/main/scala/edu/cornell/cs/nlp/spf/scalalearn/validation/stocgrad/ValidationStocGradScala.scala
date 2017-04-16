@@ -52,7 +52,7 @@ import edu.cornell.cs.nlp.utils.log.LoggerFactory
   */
 object ValidationStocGradScala {
 
-  class Creator[SAMPLE <: IDataItem[SAMPLE], DI <: ILabeledDataItem[SAMPLE, _], MR](val `type`: String)
+  class Creator[SAMPLE <: IDataItem[SAMPLE], DI <: ILabeledDataItem[SAMPLE, _], MR](val name: String)
     extends IResourceObjectCreator[ValidationStocGrad[SAMPLE, DI, MR]] {
     def this() = {
       this("learner.validation.stocgrad")
@@ -61,11 +61,43 @@ object ValidationStocGradScala {
     @SuppressWarnings("unchecked")
     override def create(params: ParameterizedExperiment#Parameters, repo: IResourceRepository): ValidationStocGrad[SAMPLE, DI, MR] = {
 
+      val numIterations =
+        if (params.contains("iter")) params.get("iter").toInt
+        else 4
+
       val trainingData: IDataCollection[DI] = repo.get(params.get("data"))
+
+      val trainingDataDebug = new java.util.HashMap[DI, MR]
+
+      val maxSentenceLength = java.lang.Integer.MAX_VALUE
+
+      val lexiconGenerationBeamSize =
+        if (params.contains("genlexbeam")) params.get("genlexbeam").toInt
+        else 20
 
       val parser = repo.get(ParameterizedExperiment.PARSER_RESOURCE).asInstanceOf[IGraphParser[SAMPLE, MR]]
 
+      val parserOutputLogger: IOutputLogger[MR] =
+        if (params.contains("parseLogger")) repo.get(params.get("parseLogger")).asInstanceOf[IOutputLogger[MR]]
+        else { (_: IParserOutput[MR], _: IDataItemModel[MR], _: String) => () }
+
+      val alpha0 =
+        if (params.contains("alpha0")) params.get("alpha0").toDouble
+        else 1.0
+
+      val c =
+        if (params.contains("c")) params.get("c").toDouble
+        else 0.0001
+
       val validator = repo.get(params.get("validator")).asInstanceOf[IValidator[DI, MR]]
+
+      val conflateGenlexAndPrunedParses =
+        if (params.contains("conflateParses")) params.get("conflateParses").toBoolean
+        else false
+
+      val errorDriven =
+        if (params.contains("errorDriven")) params.get("errorDriven").toBoolean
+        else false
 
       val (genlex, categoryServices) =
         if (params.contains("genlex"))
@@ -73,47 +105,13 @@ object ValidationStocGradScala {
             repo.get(ParameterizedExperiment.CATEGORY_SERVICES_RESOURCE).asInstanceOf[ICategoryServices[MR]])
         else (null, null)
 
-      val parseOutputLogger: IOutputLogger[MR] =
-        if (params.contains("parseLogger")) repo.get(params.get("parseLogger")).asInstanceOf[IOutputLogger[MR]]
-        else (output: IParserOutput[MR], dataItemModel: IDataItemModel[MR], tag: String) => ()
-
-      val lexiconGenerationBeamSize =
-        if (params.contains("genlexbeam")) params.get("genlexbeam").toInt
-        else 20
-
-      val numIterations =
-        if (params.contains("iter")) params.get("iter").toInt
-        else 4
-
       val filter: IFilter[DI] =
         if (params.contains("filter")) repo.get(params.get("filter")).asInstanceOf[IFilter[DI]]
-        else (e: DI) => true
-
-      val errorDriven =
-        if (params.contains("errorDriven")) params.get("errorDriven").toBoolean
-        else false
-
-      val c =
-        if (params.contains("c")) params.get("c").toDouble
-      else 0.0001
+        else { (_: DI) => true }
 
       val parsingFilterFactory =
         if (params.contains("filterFactory")) repo.get(params.get("filterFactory")).asInstanceOf[IParsingFilterFactory[DI, MR]]
         else new StubFilterFactory[DI, MR]
-
-      val alpha0 =
-        if (params.contains("alpha0")) params.get("alpha0").toDouble
-        else 1.0
-
-      val conflateGenlexAndPrunedParses =
-        if (params.contains("conflateParses")) params.get("conflateParses").toBoolean
-        else false
-
-      val trainingDataDebug = new java.util.HashMap[DI, MR]
-
-      val maxSentenceLength = java.lang.Integer.MAX_VALUE
-
-      val parserOutputLogger: IOutputLogger[MR] = (_: IParserOutput[MR], _: IDataItemModel[MR], _: String) => ()
 
       new ValidationStocGrad[SAMPLE, DI, MR](
         numIterations,
@@ -134,7 +132,7 @@ object ValidationStocGradScala {
         parsingFilterFactory)
     }
 
-    override def `type`: String = `type`
+    override def `type`: String = name
 
     override def usage: ResourceUsage =
       new ResourceUsage.Builder(`type`, classOf[ValidationPerceptron[_ <: IDataItem[_], _ <: ILabeledDataItem[_, _], _]])

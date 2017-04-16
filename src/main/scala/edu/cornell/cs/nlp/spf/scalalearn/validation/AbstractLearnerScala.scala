@@ -19,9 +19,9 @@ import scala.collection.JavaConverters._
 import scala.util.Try
 
 object AbstractLearnerScala {
-  protected val GOLD_LF_IS_MAX: String = "G"
-  protected val HAS_VALID_LF: String = "V"
-  protected val TRIGGERED_UPDATE: String = "U"
+  val GOLD_LF_IS_MAX: String = "G"
+  val HAS_VALID_LF: String = "V"
+  val TRIGGERED_UPDATE: String = "U"
 }
 
 abstract class AbstractLearnerScala[SAMPLE <: IDataItem[_],
@@ -50,7 +50,8 @@ abstract class AbstractLearnerScala[SAMPLE <: IDataItem[_],
     .addStat(HAS_VALID_LF, "Has a valid parse")
     .addStat(TRIGGERED_UPDATE, "Sample triggered update")
     .addStat(GOLD_LF_IS_MAX, "The best-scoring LF equals the provided GOLD debug LF")
-    .setNumberStat("Number of new lexical entries added").build
+    .setNumberStat("Number of new lexical entries added")
+    .build
 
   override def train(model: Model[SAMPLE, MR]): Unit = {
 
@@ -88,7 +89,7 @@ abstract class AbstractLearnerScala[SAMPLE <: IDataItem[_],
 
           Try {
             // Data item model
-            val dataItemModel: IDataItemModel[MR] = model.createDataItemModel(dataItem.getSample)
+            val dataItemModel = model.createDataItemModel(dataItem.getSample)
 
             // ///////////////////////////
             // Step I: Parse with current model. If we get a valid
@@ -96,7 +97,7 @@ abstract class AbstractLearnerScala[SAMPLE <: IDataItem[_],
             // ///////////////////////////
 
             // Parse with current model and record some statistics
-            val parserOutput: PO = parse(dataItem, dataItemModel)
+            val parserOutput = parse(dataItem, dataItemModel)
             stats.mean("Model parse", parserOutput.getParsingTime / 1000.0, "sec")
             parserOutputLogger.log(parserOutput, dataItemModel, s"train-$epochNumber-$itemCounter")
 
@@ -158,7 +159,13 @@ abstract class AbstractLearnerScala[SAMPLE <: IDataItem[_],
   private def getValidParses(parserOutput: PO, dataItem: DI) =
     parserOutput.getAllDerivations.asScala.filter(e => validate(dataItem, e.getSemantics)).toList
 
-  private def lexicalInduction(dataItem: DI, dataItemNumber: Int, dataItemModel: IDataItemModel[MR], model: Model[SAMPLE, MR], epochNumber: Int): PO = { // Generate lexical entries
+  private def lexicalInduction(dataItem: DI,
+                               dataItemNumber: Int,
+                               dataItemModel: IDataItemModel[MR],
+                               model: Model[SAMPLE, MR],
+                               epochNumber: Int): PO = {
+
+    // Generate lexical entries
     val generatedLexicon = genlex.generate(dataItem, model, categoryServices)
     log.info(s"Generated lexicon size = ${generatedLexicon.size}")
 
@@ -191,7 +198,6 @@ abstract class AbstractLearnerScala[SAMPLE <: IDataItem[_],
           else if (parse.getScore == currentScore) (parse :: acc, currentScore)
           else (acc, currentScore)
         }
-
 
       log.info(s"${bestGenerationParses.size} valid best parses for lexical generation:")
 

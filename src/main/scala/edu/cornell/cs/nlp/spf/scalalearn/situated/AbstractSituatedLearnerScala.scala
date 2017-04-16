@@ -11,16 +11,38 @@ import edu.cornell.cs.nlp.spf.learn.{ILearner, LearningStats}
 import edu.cornell.cs.nlp.spf.parser.ccg.model.IDataItemModel
 import edu.cornell.cs.nlp.spf.parser.joint.model.{IJointDataItemModel, IJointModelImmutable, JointModel}
 import edu.cornell.cs.nlp.spf.parser.joint.{IJointDerivation, IJointOutputLogger, IJointParser}
-import edu.cornell.cs.nlp.utils.log.LoggerFactory
+import edu.cornell.cs.nlp.utils.log.{ILogger, LoggerFactory}
 import edu.cornell.cs.nlp.utils.system.MemoryReport
 
 import scala.collection.JavaConverters._
 
 
+/**
+  * Situated validation-based learner. See Artzi and Zettlemoyer 2013 for
+  * detailed description.
+  * <p>
+  * Parameter update step inspired by: Natasha Singh-Miller and Michael Collins.
+  * 2007. Trigger-based Language Modeling using a Loss-sensitive Perceptron
+  * Algorithm. In proceedings of ICASSP 2007.
+  * </p>
+  *
+  * @author Yoav Artzi
+  * @param < STATE>
+  *          Type of initial state.
+  * @param < MR>
+  *          Meaning representation type.
+  * @param < ESTEP>
+  *          Type of execution step.
+  * @param < ERESULT>
+  *          Type of execution result.
+  * @param < DI>
+  *          Data item used for learning.
+  */
+
 object AbstractSituatedLearnerScala {
-  val GOLD_LF_IS_MAX: String = "G"
-  val HAS_VALID_LF: String = "V"
-  val TRIGGERED_UPDATE: String = "U"
+  val GOLD_LF_IS_MAX = "G"
+  val HAS_VALID_LF = "V"
+  val TRIGGERED_UPDATE = "U"
 }
 
 abstract class AbstractSituatedLearnerScala[SAMPLE <: ISituatedDataItem[Sentence, _],
@@ -51,7 +73,7 @@ abstract class AbstractSituatedLearnerScala[SAMPLE <: ISituatedDataItem[Sentence
     .setNumberStat("Number of new lexical entries added for sample")
     .build()
 
-  val log = LoggerFactory.create(classOf[AbstractSituatedLearnerScala[SAMPLE, MR, ESTEP, ERESULT, DI]])
+  val log: ILogger = LoggerFactory.create(classOf[AbstractSituatedLearnerScala[SAMPLE, MR, ESTEP, ERESULT, DI]])
 
   override def train(model: JModel): Unit = {
     // Init GENLEX.
@@ -76,8 +98,8 @@ abstract class AbstractSituatedLearnerScala[SAMPLE <: ISituatedDataItem[Sentence
           // Log sample header
           itemCounter = itemCounter + 1
           log.info(s"[$itemCounter]: ================== [$epochNumber]")
-          log.info("Sample type: %s", classOf[DI].getSimpleName)
-          log.info("%s", dataItem)
+          log.info(s"Sample type: ${classOf[DI].getSimpleName}")
+          log.info(dataItem.toString)
 
           // Skip sample, if over the length limit
           if (dataItem.getSample.getSample.getTokens.size > maxSentenceLength)
@@ -155,9 +177,8 @@ abstract class AbstractSituatedLearnerScala[SAMPLE <: ISituatedDataItem[Sentence
       AbstractSituatedLearner.LOG.info(s"${bestGenerationParses.size} valid best parses for lexical generation:")
       bestGenerationParses.foreach(logParse(dataItem, _, valid = true, verbose = true, dataItemModel))
 
-      // Проверить на эквивалетность джавовского код и переписать красивее
-      // Update the model's lexicon with generated lexical
-      // entries from the max scoring valid generation parses
+      // Проверить на эквивалетность джавовского кода и переписать красивее?
+      // Update the model's lexicon with generated lexical entries from the max scoring valid generation parses
       val newLexicalEntries = bestGenerationParses.foldLeft(0){ (newLexicalEntriesCounter, parse) =>
         newLexicalEntriesCounter + parse.getMaxLexicalEntries.asScala.foldLeft(0){ (innerCounter, entry) =>
           val linkedEntries = entry.getLinkedEntries.asScala.filter(linkedEntry => model.addLexEntry(LexiconGenerationServices.unmark(linkedEntry)))
@@ -198,7 +219,8 @@ abstract class AbstractSituatedLearnerScala[SAMPLE <: ISituatedDataItem[Sentence
                          tag: String,
                          dataItemModel: IDataItemModel[MR]): Unit = {
     val isGold = isGoldDebugCorrect(dataItem, parse.getResult)
-    AbstractSituatedLearner.LOG.info(s"${if (isGold) "* " else "  "}${tag + " "}[${parse.getViterbiScore}${if (valid) ", V" else ", X"}] $parse")
+    val logString = s"${if (isGold) "* " else "  "}${tag + " "}[${parse.getViterbiScore}${if (valid) ", V" else ", X"}] $parse"
+    AbstractSituatedLearner.LOG.info(logString)
 
     if (verbose) {
       parse.getMaxSteps.asScala.foreach { step =>
@@ -210,7 +232,11 @@ abstract class AbstractSituatedLearnerScala[SAMPLE <: ISituatedDataItem[Sentence
   /**
     * Parameter update method.
     */
-  protected def parameterUpdate(dataItem: DI, dataItemModel: IJointDataItemModel[MR, ESTEP], model: JointModel[SAMPLE, MR, ESTEP], itemCounter: Int, epochNumber: Int)
+  protected def parameterUpdate(dataItem: DI,
+                                dataItemModel: IJointDataItemModel[MR, ESTEP],
+                                model: JointModel[SAMPLE, MR, ESTEP],
+                                itemCounter: Int,
+                                epochNumber: Int)
 
   protected def validate(dataItem: DI, hypothesis: ERESULT): Boolean
 }

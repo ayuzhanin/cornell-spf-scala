@@ -16,11 +16,11 @@ import edu.cornell.cs.nlp.spf.parser.ccg.model.IDataItemModel
 import edu.cornell.cs.nlp.spf.parser.joint.graph.IJointGraphParser
 import edu.cornell.cs.nlp.spf.parser.joint.model.{IJointDataItemModel, IJointModelImmutable}
 import edu.cornell.cs.nlp.spf.parser.joint.{IJointOutput, IJointOutputLogger}
+import edu.cornell.cs.nlp.spf.scalalearn.situated.AbstractSituatedLearnerScala
+import edu.cornell.cs.nlp.spf.scalalearn.situated.AbstractSituatedLearnerScala._
 import edu.cornell.cs.nlp.utils.composites.Pair
 import edu.cornell.cs.nlp.utils.filter.IFilter
 import edu.cornell.cs.nlp.utils.log.{ILogger, LoggerFactory}
-import edu.cornell.sc.nlp.spf.scalalearn.situated.AbstractSituatedLearnerScala
-import edu.cornell.sc.nlp.spf.scalalearn.situated.AbstractSituatedLearnerScala._
 
 object SituatedValidationStocGradScala {
 
@@ -66,11 +66,11 @@ object SituatedValidationStocGradScala {
         if (params.contains("alpha0")) params.get("alpha0").toDouble
         else 0.1
 
-      val validator = repo.get(params.get("validator")).asInstanceOf[IValidator[DI, ERESULT]]
-
       val c =
         if (params.contains("c")) params.get("c").toDouble
         else 0.0001
+
+      val validator = repo.get(params.get("validator")).asInstanceOf[IValidator[DI, ERESULT]]
 
       val (categoryServices, genlex) =
         if (params.contains("genlex"))
@@ -159,7 +159,12 @@ class SituatedValidationStocGradScala[SAMPLE <: ISituatedDataItem[Sentence, _],
     super.train(model)
   }
 
-  override protected def parameterUpdate(dataItem: DI, dataItemModel: IJointDataItemModel[MR, ESTEP], model: JModel, dataItemNumber: Int, epochNumber: Int): Unit = { // Parse with current model
+  override protected def parameterUpdate(dataItem: DI,
+                                         dataItemModel: IJointDataItemModel[MR, ESTEP],
+                                         model: JModel,
+                                         dataItemNumber: Int,
+                                         epochNumber: Int): Unit = {
+
     // Parse with current model
     val parserOutput = graphParser.parse(dataItem.getSample, dataItemModel)
     stats.mean("model parse", parserOutput.getInferenceTime / 1000.0, "sec")
@@ -167,86 +172,86 @@ class SituatedValidationStocGradScala[SAMPLE <: ISituatedDataItem[Sentence, _],
     val modelParses = parserOutput.getDerivations
     val bestModelParses = parserOutput.getMaxDerivations
 
-    if (modelParses.isEmpty) { // Skip the rest of the process if no complete parses
-      // available
+    if (modelParses.isEmpty) {
+      // Skip the rest of the process if no complete parses available
       log.info(s"No parses for: $dataItem")
       log.info("Skipping parameter update")
-      return
-    }
+    } else {
 
-    log.info(s"Created ${modelParses.size} model parses for training sample")
-    log.info(s"Model parsing time: ${parserOutput.getInferenceTime / 1000.0}sec")
-    log.info(s"Output is ${if (parserOutput.isExact) "exact" else "approximate"}")
+      log.info(s"Created ${modelParses.size} model parses for training sample")
+      log.info(s"Model parsing time: ${parserOutput.getInferenceTime / 1000.0}sec")
+      log.info(s"Output is ${if (parserOutput.isExact) "exact" else "approximate"}")
 
-    // Create the update
-    val update: IHashVector = HashVectorFactory.create
+      // Create the update
+      val update: IHashVector = HashVectorFactory.create
 
-    // Step A: Compute the positive half of the update: conditioned on getting successful validation
-    val filter: IFilter[ERESULT] = (e: ERESULT) => validate(dataItem, e)
+      // Step A: Compute the positive half of the update: conditioned on getting successful validation
+      val filter: IFilter[ERESULT] = (e: ERESULT) => validate(dataItem, e)
 
-    val logConditionedNorm: Double = parserOutput.logNorm(filter)
-    if (logConditionedNorm == java.lang.Double.NEGATIVE_INFINITY) {
-      // No positive update, skip the update.
-      return
-    }
-    else {
-      // Case have complete valid parses.
-      val expectedFeatures = parserOutput.logExpectedFeatures(filter)
-      expectedFeatures.add(-logConditionedNorm)
-      expectedFeatures.applyFunction((value: Double) => java.lang.Math.exp(value))
-      expectedFeatures.dropNoise()
-      expectedFeatures.addTimesInto(1.0, update)
-      log.info(s"Positive update: $expectedFeatures")
+      val logConditionedNorm = parserOutput.logNorm(filter)
+      if (logConditionedNorm != java.lang.Double.NEGATIVE_INFINITY) {
+        // No positive update, skip the update.
+        return
+      }
+      else {
+        // Case have complete valid parses.
+        val expectedFeatures = parserOutput.logExpectedFeatures(filter)
+        expectedFeatures.add(-logConditionedNorm)
+        expectedFeatures.applyFunction((value: Double) => java.lang.Math.exp(value))
+        expectedFeatures.dropNoise()
+        expectedFeatures.addTimesInto(1.0, update)
+        log.info(s"Positive update: $expectedFeatures")
 
-      // Record if the best is the gold standard, if such debug information is available
-      stats.count("valid", epochNumber)
-      if (bestModelParses.size == 1 && isGoldDebugCorrect(dataItem, bestModelParses.get(0).getResult))
-        stats.appendSampleStat(dataItemNumber, epochNumber, GOLD_LF_IS_MAX)
-      else stats.appendSampleStat(dataItemNumber, epochNumber, HAS_VALID_LF)
-    }
+        // Record if the best is the gold standard, if such debug information is available
+        stats.count("valid", epochNumber)
+        if (bestModelParses.size == 1 && isGoldDebugCorrect(dataItem, bestModelParses.get(0).getResult))
+          stats.appendSampleStat(dataItemNumber, epochNumber, GOLD_LF_IS_MAX)
+        else stats.appendSampleStat(dataItemNumber, epochNumber, HAS_VALID_LF)
+      }
 
-    // Step B: Compute the negative half of the update: expectation under the current model
-    val logNorm = parserOutput.logNorm
-    if (logNorm == java.lang.Double.NEGATIVE_INFINITY) log.info("No negative update")
-    else {
-      // Case have complete parses.
-      val expectedFeatures = parserOutput.logExpectedFeatures
-      expectedFeatures.add(-logNorm)
-      expectedFeatures.applyFunction((value: Double) => Math.exp(value))
-      expectedFeatures.dropNoise()
-      expectedFeatures.addTimesInto(-1.0, update)
-      log.info(s"Negative update: $expectedFeatures")
-    }
+      // Step B: Compute the negative half of the update: expectation under the current model
+      val logNorm = parserOutput.logNorm
+      if (logNorm == java.lang.Double.NEGATIVE_INFINITY) log.info("No negative update")
+      else {
+        // Case have complete parses.
+        val expectedFeatures = parserOutput.logExpectedFeatures
+        expectedFeatures.add(-logNorm)
+        expectedFeatures.applyFunction((value: Double) => Math.exp(value))
+        expectedFeatures.dropNoise()
+        expectedFeatures.addTimesInto(-1.0, update)
+        log.info(s"Negative update: $expectedFeatures")
+      }
 
-    // Step C: Apply the update Validate the update
-    if (!model.isValidWeightVector(update)) throw new IllegalStateException(s"invalid update: $update")
+      // Step C: Apply the update Validate the update
+      if (!model.isValidWeightVector(update)) throw new IllegalStateException(s"invalid update: $update")
 
-    // Scale the update
-    val scale = alpha0 / (1.0 + c * stocGradientNumUpdates)
-    update.multiplyBy(scale)
-    update.dropNoise()
-    stocGradientNumUpdates += 1
-    log.info("Scale: %f", scale)
-    if (update.size == 0) {
-      log.info("No update")
-      return
-    }
-    else {
-      log.info(s"Update: $update")
-      stats.appendSampleStat(dataItemNumber, epochNumber, TRIGGERED_UPDATE)
-      stats.count("update", epochNumber)
-    }
+      // Scale the update
+      val scale = alpha0 / (1.0 + c * stocGradientNumUpdates)
+      update.multiplyBy(scale)
+      update.dropNoise()
+      stocGradientNumUpdates = stocGradientNumUpdates + 1
+      log.info(s"Scale: $scale")
+      if (update.size == 0) {
+        log.info("No update")
+        return
+      }
+      else {
+        log.info(s"Update: $update")
+        stats.appendSampleStat(dataItemNumber, epochNumber, TRIGGERED_UPDATE)
+        stats.count("update", epochNumber)
+      }
 
-    // Check for NaNs and super large updates
-    if (update.isBad) {
-      log.error(s"Bad update: $update -- log-norm: $logNorm -- feats: ${null}")
-      log.error(model.getTheta.printValues(update))
-      throw new IllegalStateException("bad update")
-    }
-    else {
-      if (!update.valuesInRange(-100, 100)) log.warn("Large update")
-      // Do the update
-      update.addTimesInto(1, model.getTheta)
+      // Check for NaNs and super large updates
+      if (update.isBad) {
+        log.error(s"Bad update: $update -- log-norm: $logNorm -- feats: ${null}")
+        log.error(model.getTheta.printValues(update))
+        throw new IllegalStateException("bad update")
+      }
+      else {
+        if (!update.valuesInRange(-100, 100)) log.warn("Large update")
+        // Do the update
+        update.addTimesInto(1, model.getTheta)
+      }
     }
   }
 

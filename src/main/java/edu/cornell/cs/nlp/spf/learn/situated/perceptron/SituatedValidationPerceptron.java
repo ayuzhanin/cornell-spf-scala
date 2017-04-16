@@ -363,8 +363,7 @@ public class SituatedValidationPerceptron<SAMPLE extends ISituatedDataItem<Sente
         private boolean hardUpdates = false;
 
         /**
-         * Beam size to use when doing loss sensitive pruning with generated
-         * lexicon.
+         * Beam size to use when doing loss sensitive pruning with generated lexicon.
          */
         private int lexiconGenerationBeamSize = 20;
 
@@ -374,8 +373,7 @@ public class SituatedValidationPerceptron<SAMPLE extends ISituatedDataItem<Sente
         private double margin = 1.0;
 
         /**
-         * Max sentence length. Sentence longer than this value will be skipped
-         * during training
+         * Max sentence length. Sentence longer than this value will be skipped during training
          */
         private int maxSentenceLength = Integer.MAX_VALUE;
         /**
@@ -390,21 +388,13 @@ public class SituatedValidationPerceptron<SAMPLE extends ISituatedDataItem<Sente
             private static final long serialVersionUID = 4342845964338126692L;
 
             @Override
-            public void log(IJointOutput<MR, ERESULT> output,
-                            IJointDataItemModel<MR, ESTEP> dataItemModel,
-                            String tag) {
-                // Stub,
-                // do
-                // nothing.
+            public void log(IJointOutput<MR, ERESULT> output, IJointDataItemModel<MR, ESTEP> dataItemModel, String tag) {
+                // Stub, do nothing.
             }
 
             @Override
-            public void log(IParserOutput<MR> output,
-                            IDataItemModel<MR> dataItemModel,
-                            String tag) {
-                // Stub,
-                // do
-                // nothing.
+            public void log(IParserOutput<MR> output, IDataItemModel<MR> dataItemModel, String tag) {
+                // Stub, do nothing.
             }
         };
 
@@ -473,8 +463,7 @@ public class SituatedValidationPerceptron<SAMPLE extends ISituatedDataItem<Sente
             return this;
         }
 
-        public Builder<SAMPLE, MR, ESTEP, ERESULT, DI> setParserOutputLogger(
-                IJointOutputLogger<MR, ESTEP, ERESULT> parserOutputLogger) {
+        public Builder<SAMPLE, MR, ESTEP, ERESULT, DI> setParserOutputLogger(IJointOutputLogger<MR, ESTEP, ERESULT> parserOutputLogger) {
             this.parserOutputLogger = parserOutputLogger;
             return this;
         }
@@ -505,10 +494,9 @@ public class SituatedValidationPerceptron<SAMPLE extends ISituatedDataItem<Sente
         public SituatedValidationPerceptron<SAMPLE, MR, ESTEP, ERESULT, DI> create(
                 Parameters params, IResourceRepository repo) {
 
-            final IDataCollection<DI> trainingData = repo.get(params
-                    .get("data"));
+            final IDataCollection<DI> trainingData = repo.get(params.get("data"));
 
-            final Builder<SAMPLE, MR, ESTEP, ERESULT, DI> builder = new SituatedValidationPerceptron.Builder<SAMPLE, MR, ESTEP, ERESULT, DI>(
+            final Builder<SAMPLE, MR, ESTEP, ERESULT, DI> builder = new SituatedValidationPerceptron.Builder<>(
                     trainingData,
                     (IJointParser<SAMPLE, MR, ESTEP, ERESULT>) repo
                             .get(ParameterizedExperiment.PARSER_RESOURCE),
@@ -562,22 +550,14 @@ public class SituatedValidationPerceptron<SAMPLE extends ISituatedDataItem<Sente
         public ResourceUsage usage() {
             return new ResourceUsage.Builder(type(),
                     SituatedValidationPerceptron.class)
-                    .setDescription(
-                            "Validation senstive perceptron for situated learning of models with situated inference (cite: Artzi and Zettlemoyer 2013)")
+                    .setDescription("Validation senstive perceptron for situated learning of models with situated inference (cite: Artzi and Zettlemoyer 2013)")
                     .addParam("data", "id", "Training data")
-                    .addParam(
-                            "hard",
-                            "boolean",
-                            "Use hard updates (i.e., only use max scoring valid parses/evaluation as positive samples). Options: true, false. Default: false")
-                    .addParam("parseLogger", "id",
-                            "Parse logger for debug detailed logging of parses")
+                    .addParam("hard", "boolean", "Use hard updates (i.e., only use max scoring valid parses/evaluation as positive samples). Options: true, false. Default: false")
+                    .addParam("parseLogger", "id", "Parse logger for debug detailed logging of parses")
                     .addParam("genlex", "ILexiconGenerator", "GENLEX procedure")
-                    .addParam("genlexbeam", "int",
-                            "Beam to use for GENLEX inference (parsing).")
-                    .addParam("margin", "double",
-                            "Margin to use for updates. Updates will be done when this margin is violated.")
-                    .addParam("maxSentenceLength", "int",
-                            "Max sentence length to process")
+                    .addParam("genlexbeam", "int", "Beam to use for GENLEX inference (parsing).")
+                    .addParam("margin", "double", "Margin to use for updates. Updates will be done when this margin is violated.")
+                    .addParam("maxSentenceLength", "int", "Max sentence length to process")
                     .addParam("iter", "int", "Number of training iterations")
                     .addParam("validator", "IValidator", "Validation function")
                     .build();

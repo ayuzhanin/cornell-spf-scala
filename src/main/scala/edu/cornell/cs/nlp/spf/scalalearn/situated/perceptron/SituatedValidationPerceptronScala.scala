@@ -16,7 +16,7 @@ import edu.cornell.cs.nlp.spf.parser.IParserOutput
 import edu.cornell.cs.nlp.spf.parser.ccg.model.IDataItemModel
 import edu.cornell.cs.nlp.spf.parser.joint.model.{IJointDataItemModel, IJointModelImmutable, JointModel}
 import edu.cornell.cs.nlp.spf.parser.joint.{IJointDerivation, IJointOutput, IJointOutputLogger, IJointParser}
-import edu.cornell.cs.nlp.utils.log.{ILogger, LoggerFactory}
+import edu.cornell.cs.nlp.utils.log.LoggerFactory
 
 import scala.collection.JavaConverters._
 
@@ -29,17 +29,11 @@ import scala.collection.JavaConverters._
   * Algorithm. In proceedings of ICASSP 2007.
   * </p>
   *
-  * @author Yoav Artzi
-  * @param < STATE>
-  *          Type of initial state.
-  * @param < MR>
-  *          Meaning representation type.
-  * @param < ESTEP>
-  *          Type of execution step.
-  * @param < ERESULT>
-  *          Type of execution result.
-  * @param < DI>
-  *          Training data item.
+  * @param < STATE>   Type of initial state.
+  * @param < MR>      Meaning representation type.
+  * @param < ESTEP>   Type of execution step.
+  * @param < ERESULT> Type of execution result.
+  * @param < DI>      Training data item.
   */
 
 class SituatedValidationPerceptronScala[SAMPLE <: ISituatedDataItem[Sentence, _], MR, ESTEP, ERESULT, DI <: ILabeledDataItem[SAMPLE, _]]
@@ -55,21 +49,20 @@ class SituatedValidationPerceptronScala[SAMPLE <: ISituatedDataItem[Sentence, _]
                                          validator: IValidator[DI, ERESULT],
                                          categoryServices: ICategoryServices[MR],
                                          genlex: ILexiconGenerator[DI, MR, IJointModelImmutable[SAMPLE, MR, ESTEP]])
-                                          extends AbstractSituatedLearner[SAMPLE, MR, ESTEP, ERESULT, DI] (numIterations,
-                                            trainingData,
-                                            trainingDataDebug,
-                                            maxSentenceLength,
-                                            lexiconGenerationBeamSize,
-                                            parser,
-                                            parserOutputLogger,
-                                            categoryServices,
-                                            genlex) {
+  extends AbstractSituatedLearner[SAMPLE, MR, ESTEP, ERESULT, DI] (numIterations,
+                                                                  trainingData,
+                                                                  trainingDataDebug,
+                                                                  maxSentenceLength,
+                                                                  lexiconGenerationBeamSize,
+                                                                  parser,
+                                                                  parserOutputLogger,
+                                                                  categoryServices,
+                                                                  genlex) {
 
   type JointDerivation = IJointDerivation[MR, ERESULT]
-  type ParsesJava = java.util.List[JointDerivation]
   type JModel = JointModel[SAMPLE, MR, ESTEP]
 
-  val log = LoggerFactory.create(classOf[SituatedValidationPerceptronScala[SAMPLE,MR, ESTEP, ERESULT, DI]])
+  val log = LoggerFactory.create(classOf[SituatedValidationPerceptronScala[SAMPLE, MR, ESTEP, ERESULT, DI]])
 
   private def constructUpdate(violatingValidParses: Seq[JointDerivation], violatingInvalidParses: Seq[JointDerivation], model: JModel) = {
 
@@ -96,8 +89,7 @@ class SituatedValidationPerceptronScala[SAMPLE <: ISituatedDataItem[Sentence, _]
     val (valids, invalids, _) = parses.asScala.foldLeft((Seq.empty[JointDerivation], Seq.empty[JointDerivation], -java.lang.Double.MAX_VALUE)) {
       case ((validParses, invalidParses, validScore), parse) =>
         if (validate(dataItem, parse.getResult))
-        // Case using hard updates, only keep the highest scored
-        // valid ones
+        // Case using hard updates, only keep the highest scored valid ones
           if (hardUpdates)
             if (parse.getViterbiScore > validScore)
               (Seq(parse), invalidParses, parse.getViterbiScore)
@@ -121,7 +113,9 @@ class SituatedValidationPerceptronScala[SAMPLE <: ISituatedDataItem[Sentence, _]
           val featureDelta = validParse.getMeanMaxFeatures.addTimes(-1.0, invalid.getMeanMaxFeatures)
           val deltaScore = model score featureDelta
           val threshold = margin * featureDelta.l1Norm()
-          if (deltaScore < threshold) {isValidViolating = true; (invalid, true)}
+          if (deltaScore < threshold) {
+            isValidViolating = true; (invalid, true)
+          }
           else (invalid, flag)
         }
         val violatingValidsUpdated =
@@ -137,14 +131,14 @@ class SituatedValidationPerceptronScala[SAMPLE <: ISituatedDataItem[Sentence, _]
   }
 
   override protected def parameterUpdate(dataItem: DI,
-                                dataItemModel: IJointDataItemModel[MR, ESTEP],
-                                model: JModel,
-                                dataItemNumber: Int,
-                                epochNumber: Int): Unit = {
+                                         dataItemModel: IJointDataItemModel[MR, ESTEP],
+                                         model: JModel,
+                                         dataItemNumber: Int,
+                                         epochNumber: Int): Unit = {
 
     // Parse with current model
     val parserOutput = parser.parse(dataItem.getSample, dataItemModel)
-    stats.mean("model parse", parserOutput.getInferenceTime/ 1000.0, "sec")
+    stats.mean("model parse", parserOutput.getInferenceTime / 1000.0, "sec")
     parserOutputLogger.log(parserOutput, dataItemModel, s"$dataItemNumber-update")
     val modelParses = parserOutput.getDerivations()
     val bestModelParses = parserOutput.getMaxDerivations()
@@ -167,44 +161,38 @@ class SituatedValidationPerceptronScala[SAMPLE <: ISituatedDataItem[Sentence, _]
     validParses.foreach(logParse(dataItem, _, true, true, dataItemModel))
 
     // Record if the best is the gold standard, if such debug information is available.
-    if (bestModelParses.size() == 1 && isGoldDebugCorrect(dataItem, bestModelParses.get(0).getResult)) {
-      stats.appendSampleStat(dataItemNumber, epochNumber, AbstractSituatedLearner.GOLD_LF_IS_MAX)
-    } else if (validParses.nonEmpty) {
+    if (bestModelParses.size() == 1 && isGoldDebugCorrect(dataItem, bestModelParses.get(0).getResult)) stats.appendSampleStat(dataItemNumber, epochNumber, AbstractSituatedLearner.GOLD_LF_IS_MAX) else if (validParses.nonEmpty) {
       // Record if a valid parse was found.
       stats.appendSampleStat(dataItemNumber, epochNumber, AbstractSituatedLearner.HAS_VALID_LF)
     }
 
-    if (validParses.nonEmpty) {
-      stats.count("valid", epochNumber)
-    }
+    if (validParses.nonEmpty) stats.count("valid", epochNumber)
 
     // Skip update if there are no valid or invalid parses
-    if (validParses.isEmpty || invalidParses.isEmpty) {
-      log.info("No valid/invalid parses -- skipping")
-      return
+    if (validParses.isEmpty || invalidParses.isEmpty) log.info("No valid/invalid parses -- skipping")
+    else {
+
+      // Construct margin violating sets
+      val (violatingValidParses, violatingInvalidParses) = marginViolatingSets(model, validParses, invalidParses)
+      log.info(s"${violatingValidParses.size} violating valid parses, ${violatingInvalidParses.size} violating invalid parses")
+      if (violatingValidParses.isEmpty) log.info("There are no violating valid/invalid parses -- skipping")
+      else {
+        log.info("Violating valid parses: ")
+        violatingValidParses.foreach(logParse(dataItem, _, true, true, dataItemModel))
+
+        log.info("Violating invalid parses: ")
+        violatingInvalidParses.foreach(logParse(dataItem, _, false, true, dataItemModel))
+
+        // Construct weight update vector
+        val update = constructUpdate(violatingValidParses, violatingInvalidParses, model)
+
+        // Update the parameters vector
+        log.info(s"Update: $update")
+        update.addTimesInto(1.0, model.getTheta)
+        stats.appendSampleStat(dataItemNumber, epochNumber, AbstractSituatedLearner.TRIGGERED_UPDATE)
+        stats.count("update", epochNumber)
+      }
     }
-
-    // Construct margin violating sets
-    val (violatingValidParses, violatingInvalidParses) = marginViolatingSets(model, validParses, invalidParses)
-    log.info(s"${violatingValidParses.size} violating valid parses, ${violatingInvalidParses.size} violating invalid parses")
-    if (violatingValidParses.isEmpty) {
-      log.info("There are no violating valid/invalid parses -- skipping")
-      return
-    }
-    log.info("Violating valid parses: ")
-    violatingValidParses.foreach(logParse(dataItem, _, true, true, dataItemModel))
-
-    log.info("Violating invalid parses: ")
-    violatingInvalidParses.foreach(logParse(dataItem, _, false, true, dataItemModel))
-
-    // Construct weight update vector
-    val update = constructUpdate(violatingValidParses, violatingInvalidParses, model)
-
-    // Update the parameters vector
-    log.info(s"Update: $update")
-    update.addTimesInto(1.0, model.getTheta)
-    stats.appendSampleStat(dataItemNumber, epochNumber, AbstractSituatedLearner.TRIGGERED_UPDATE)
-    stats.count("update", epochNumber)
   }
 
   override protected def validate(dataItem: DI, hypothesis: ERESULT): Boolean = validator.isValid(dataItem, hypothesis)
@@ -213,138 +201,112 @@ class SituatedValidationPerceptronScala[SAMPLE <: ISituatedDataItem[Sentence, _]
 
 object SituatedValidationPerceptronScala {
 
-  case class Builder[SAMPLE <: ISituatedDataItem[Sentence, _],
-                    MR,
-                    ESTEP,
-                    ERESULT,
-                    DI <: ILabeledDataItem[SAMPLE, _]] private(categoryService: ICategoryServices[MR],
-                                                               genlex: ILexiconGenerator[DI, MR, IJointModelImmutable[SAMPLE, MR, ESTEP]],
-                                                               hardUpdates: Boolean = false,
-                                                               lexiconGenerationBeamSize: Int = 20,
-                                                               margin: Double = 1.0,
-                                                               maxSentenceLength: Int = Integer.MAX_VALUE,
-                                                               numIterations: Int = 4,
-                                                               parser: IJointParser[SAMPLE, MR, ESTEP, ERESULT],
-                                                               trainingData: IDataCollection[DI],
-                                                               trainingDataDebug: java.util.Map[DI, edu.cornell.cs.nlp.utils.composites.Pair[MR, ERESULT]] = new java.util.HashMap(),
-                                                               validator: IValidator[DI, ERESULT]) {
-
-    /**
-      * categoryServices Required for lexical induction.
-
-      * genlex GENLEX procedure. If 'null' skip lexical induction.
-
-      * Use hard updates. Meaning: consider only highest-scored valid parses
-      * for parameter updates, instead of all valid parses.
-
-      * Beam size to use when doing loss sensitive pruning with generated
-      * lexicon.
-      *
-      * Margin to scale the relative loss function
-
-      * Max sentence length. Sentence longer than this value will be skipped
-      * during training
-      *
-      *
-      * Number of training iterations
-      */
-
-    private val parserOutputLogger = new IJointOutputLogger[MR, ESTEP, ERESULT]() {
-      // Stub, do nothing.
-      override def log(output: IJointOutput[MR, ERESULT], dataItemModel: IJointDataItemModel[MR, ESTEP], tag: String): Unit = ()
-
-      override def log(output: IParserOutput[MR], dataItemModel: IDataItemModel[MR], tag: String): Unit = ()
-    }
-
-    object IJointOutputLogger{
-      private val serialVersionUID: Long = 4342845964338126692L
-    }
-
-    /**
-      * Training data
-      *
-      * Mapping a subset of training samples into their gold label for debug.
-      */
-
-    def build(): SituatedValidationPerceptronScala[SAMPLE, MR, ESTEP, ERESULT, DI] =
-      new SituatedValidationPerceptronScala(
-        numIterations, margin, trainingData, trainingDataDebug,
-        maxSentenceLength, lexiconGenerationBeamSize, parser,
-        hardUpdates, parserOutputLogger, validator,
-        categoryServices, genlex)
-  }
-
-
-  case class Creator[SAMPLE <: ISituatedDataItem[Sentence, _], MR, ESTEP, ERESULT, DI <: ILabeledDataItem [SAMPLE, _]]()
-   extends IResourceObjectCreator[SituatedValidationPerceptronScala[SAMPLE, MR, ESTEP, ERESULT, DI]] {
+  case class Creator[SAMPLE <: ISituatedDataItem[Sentence, _], MR, ESTEP, ERESULT, DI <: ILabeledDataItem[SAMPLE, _]]()
+    extends IResourceObjectCreator[SituatedValidationPerceptronScala[SAMPLE, MR, ESTEP, ERESULT, DI]] {
 
     override def create(params: ParameterizedExperiment#Parameters, repo: IResourceRepository): SituatedValidationPerceptronScala[SAMPLE, MR, ESTEP, ERESULT, DI] = {
 
-
+      /**
+        * Number of training iterations
+        */
       val trainingData = repo.get(params.get("data"))
 
-      val hardUpdates = "true" == (params get "hard")
+      val parser = repo.get(ParameterizedExperiment.PARSER_RESOURCE).asInstanceOf[IJointParser[SAMPLE, MR, ESTEP, ERESULT]]
 
-      val parserOutputLogger =
+      val validator = repo.get(params.get("validator")).asInstanceOf[IValidator[DI, ERESULT]]
+
+      val hardUpdates = (params get "hard").toBoolean
+
+      val parserOutputLogger: IJointOutputLogger[MR, ESTEP, ERESULT] =
         if (params contains "parseLogger")
           repo.get(params get "parseLogger").asInstanceOf[IJointOutputLogger[MR, ESTEP, ERESULT]]
-        else null
+        else new IJointOutputLogger[MR, ESTEP, ERESULT] {
+          // Stub, do nothing.
+          override def log(output: IJointOutput[MR, ERESULT], dataItemModel: IJointDataItemModel[MR, ESTEP], tag: String): Unit = ()
 
-      val (genlex, categoryService) =
+          override def log(output: IParserOutput[MR], dataItemModel: IDataItemModel[MR], tag: String): Unit = ()
+        }
+
+      /**
+        * CategoryServices required for lexical induction.
+        * GENLEX procedure. If 'null' skip lexical induction.
+        */
+      val (genlex, categoryServices) =
         if (params contains "genlex")
           (repo.get(params get "genlex").asInstanceOf[ILexiconGenerator[DI, MR, IJointModelImmutable[SAMPLE, MR, ESTEP]]],
             repo.get(ParameterizedExperiment.CATEGORY_SERVICES_RESOURCE).asInstanceOf[ICategoryServices[MR]])
         else (null, null)
 
+      /**
+        * Beam size to use when doing loss sensitive pruning with generated lexicon.
+        */
       val lexiconGenerationBeamSize =
-        if (params contains "genlexbeam") params.get("genlexbeam").asInstanceOf[Int]
+        if (params contains "genlexbeam") params.get("genlexbeam").toInt
         else 20
 
+      /**
+        * Margin to scale the relative loss function
+        */
       val margin =
-        if (params.contains("margin")) params.get("margin").asInstanceOf[Double]
+        if (params.contains("margin")) params.get("margin").toDouble
         else 1.0
 
+      /**
+        * Max sentence length. Sentence longer than this value will be skipped during training
+        */
       val maxSentenceLength =
-        if (params contains "maxSentenceLength") params.get("maxSentenceLength").asInstanceOf[Int]
+        if (params contains "maxSentenceLength") params.get("maxSentenceLength").toInt
         else Integer.MAX_VALUE
 
+      /**
+        * Number of training iterations
+        */
       val numTrainingIterations =
-        if (params contains "iter") params.get("iter").asInstanceOf[Int]
+        if (params contains "iter") params.get("iter").toInt
         else 4
 
-      val parses = repo.get(ParameterizedExperiment.PARSER_RESOURCE).asInstanceOf[IJointParser[SAMPLE, MR, ESTEP, ERESULT]]
-
-      val validator = repo.get(params.get("validator")).asInstanceOf[IValidator[DI, ERESULT]]
-
-      Builder(
-        categoryService = categoryService,
-        genlex = genlex,
-        hardUpdates = hardUpdates,
-        lexiconGenerationBeamSize = lexiconGenerationBeamSize,
-        margin = margin,
-        maxSentenceLength = maxSentenceLength,
+      /**
+        * TrainingDataDebug is a mapping a subset of training samples into their gold label for debug.
+        */
+      new SituatedValidationPerceptronScala(
         numIterations = numTrainingIterations,
-        parser = parses,
+        margin = margin,
         trainingData = trainingData,
-        trainingDataDebug = new java.util.HashMap[DI, edu.cornell.cs.nlp.utils.composites.Pair[MR, ERESULT]](),
-        validator = validator
-      ).build()
+        maxSentenceLength = maxSentenceLength,
+        trainingDataDebug = new java.util.HashMap[DI, edu.cornell.cs.nlp.utils.composites.Pair[MR, ERESULT]],
+        lexiconGenerationBeamSize = lexiconGenerationBeamSize,
+        parser = parser,
+        hardUpdates = hardUpdates,
+        validator = validator,
+        parserOutputLogger = parserOutputLogger,
+        categoryServices = categoryServices,
+        genlex = genlex
+      )
 
     }
 
     /**
       * The resource type.
-      *
-      * @return
       */
     override def `type`(): String = ???
 
     /**
       * Return a usage objects describing the resource created and how it can be
       * created.
-      *
-      * @return
       */
-    override def usage(): ResourceUsage = ???
+    override def usage(): ResourceUsage =
+      new ResourceUsage.Builder(`type`(), classOf[SituatedValidationPerceptronScala[SAMPLE, MR, ESTEP, ERESULT, DI]])
+        .setDescription("Validation senstive perceptron for situated learning of models with situated inference (cite: Artzi and Zettlemoyer 2013)")
+        .addParam("data", "id", "Training data")
+        .addParam("hard", "boolean", "Use hard updates (i.e., only use max scoring valid parses/evaluation as positive samples). Options: true, false. Default: false")
+        .addParam("parseLogger", "id", "Parse logger for debug detailed logging of parses")
+        .addParam("genlex", "ILexiconGenerator", "GENLEX procedure")
+        .addParam("genlexbeam", "int", "Beam to use for GENLEX inference (parsing).")
+        .addParam("margin", "double", "Margin to use for updates. Updates will be done when this margin is violated.")
+        .addParam("maxSentenceLength", "int", "Max sentence length to process")
+        .addParam("iter", "int", "Number of training iterations")
+        .addParam("validator", "IValidator", "Validation function")
+        .build()
   }
+
 }
