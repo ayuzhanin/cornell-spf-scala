@@ -73,7 +73,7 @@ abstract class AbstractSituatedLearnerScala[SAMPLE <: ISituatedDataItem[Sentence
     .setNumberStat("Number of new lexical entries added for sample")
     .build()
 
-  val log: ILogger = LoggerFactory.create(classOf[AbstractSituatedLearnerScala[SAMPLE, MR, ESTEP, ERESULT, DI]])
+  private val log: ILogger = LoggerFactory.create(classOf[AbstractSituatedLearnerScala[SAMPLE, MR, ESTEP, ERESULT, DI]])
 
   override def train(model: JModel): Unit = {
     // Init GENLEX.

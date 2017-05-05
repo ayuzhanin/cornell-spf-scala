@@ -40,8 +40,6 @@ import edu.cornell.cs.nlp.utils.log.LoggerFactory;
  * Perceptron learner for parameter update only.
  *
  * @author Yoav Artzi
- * @param <DI>
- * @param <MR>
  */
 public class SimplePerceptron implements
 		ILearner<Sentence, SingleSentence, Model<Sentence, LogicalExpression>> {

@@ -4,34 +4,26 @@ import java.util
 import java.util.function.Predicate
 
 import edu.cornell.cs.nlp.spf.base.hashvector.HashVectorFactory
-import edu.cornell.cs.nlp.spf.ccg.categories.Category
-import edu.cornell.cs.nlp.spf.ccg.categories.ICategoryServices
+import edu.cornell.cs.nlp.spf.ccg.categories.{Category, ICategoryServices}
 import edu.cornell.cs.nlp.spf.ccg.lexicon.ILexiconImmutable
-import edu.cornell.cs.nlp.spf.data.IDataItem
-import edu.cornell.cs.nlp.spf.data.ILabeledDataItem
+import edu.cornell.cs.nlp.spf.data.{IDataItem, ILabeledDataItem}
 import edu.cornell.cs.nlp.spf.data.collection.IDataCollection
 import edu.cornell.cs.nlp.spf.data.utils.IValidator
-import edu.cornell.cs.nlp.spf.explat.IResourceRepository
-import edu.cornell.cs.nlp.spf.explat.ParameterizedExperiment
+import edu.cornell.cs.nlp.spf.explat.{IResourceRepository, ParameterizedExperiment}
 import edu.cornell.cs.nlp.spf.explat.resources.IResourceObjectCreator
 import edu.cornell.cs.nlp.spf.explat.resources.usage.ResourceUsage
 import edu.cornell.cs.nlp.spf.genlex.ccg.ILexiconGenerator
-import edu.cornell.cs.nlp.spf.learn.validation.AbstractLearner
 import edu.cornell.cs.nlp.spf.learn.validation.perceptron.ValidationPerceptron
 import edu.cornell.cs.nlp.spf.learn.validation.stocgrad.ValidationStocGrad
-import edu.cornell.cs.nlp.spf.parser.IOutputLogger
-import edu.cornell.cs.nlp.spf.parser.IParserOutput
-import edu.cornell.cs.nlp.spf.parser.ParsingOp
-import edu.cornell.cs.nlp.spf.parser.ccg.model.IDataItemModel
-import edu.cornell.cs.nlp.spf.parser.ccg.model.IModelImmutable
-import edu.cornell.cs.nlp.spf.parser.ccg.model.Model
-import edu.cornell.cs.nlp.spf.parser.filter.IParsingFilterFactory
-import edu.cornell.cs.nlp.spf.parser.filter.StubFilterFactory
-import edu.cornell.cs.nlp.spf.parser.graph.IGraphParser
-import edu.cornell.cs.nlp.spf.parser.graph.IGraphParserOutput
+import edu.cornell.cs.nlp.spf.parser.{IOutputLogger, IParserOutput, ParsingOp}
+import edu.cornell.cs.nlp.spf.parser.ccg.model.{IDataItemModel, IModelImmutable, Model}
+import edu.cornell.cs.nlp.spf.parser.filter.{IParsingFilterFactory, StubFilterFactory}
+import edu.cornell.cs.nlp.spf.parser.graph.{IGraphParser, IGraphParserOutput}
+import edu.cornell.cs.nlp.spf.scalalearn.validation.AbstractLearnerScala
 import edu.cornell.cs.nlp.utils.filter.IFilter
-import edu.cornell.cs.nlp.utils.log.ILogger
-import edu.cornell.cs.nlp.utils.log.LoggerFactory
+import edu.cornell.cs.nlp.utils.log.{ILogger, LoggerFactory}
+
+import scala.collection.JavaConverters._
 
 /**
   * Validation-based stochastic gradient learner.
@@ -43,20 +35,159 @@ import edu.cornell.cs.nlp.utils.log.LoggerFactory
   * </p>
   *
   * @author Yoav Artzi
-  * @param < SAMPLE>
-  *          Data item to use for inference.
-  * @param < DI>
-  *          Data item for learning.
-  * @param < MR>
-  *          Meaning representation.
+  * @tparam SAMPLE Data item to use for inference.
+  * @tparam DI     Data item for learning.
+  * @tparam MR     Meaning representation.
   */
+
+class ValidationStocGradScala[SAMPLE <: IDataItem[SAMPLE], DI <: ILabeledDataItem[SAMPLE, _], MR] private
+          (val numIterations: Int,
+           override val trainingData: IDataCollection[DI],
+           override val trainingDataDebug: util.Map[DI, MR],
+           val maxSentenceLength: Int,
+           override val lexiconGenerationBeamSize: Int,
+           val parser: IGraphParser[SAMPLE, MR],
+           override val parserOutputLogger: IOutputLogger[MR],
+           val alpha0: Double,
+           val c: Double,
+           val validator: IValidator[DI, MR],
+           override val conflateGenlexAndPrunedParses: Boolean,
+           override val errorDriven: Boolean,
+           override val categoryServices: ICategoryServices[MR],
+           override val genlex: ILexiconGenerator[DI, MR, IModelImmutable[SAMPLE, MR]],
+           override val processingFilter: IFilter[DI],
+           override val parsingFilterFactory: IParsingFilterFactory[DI, MR])
+    extends AbstractLearnerScala[SAMPLE, DI, IGraphParserOutput[MR], MR](
+                numIterations,
+                trainingData,
+                trainingDataDebug.asScala.toMap,
+                lexiconGenerationBeamSize,
+                parserOutputLogger,
+                conflateGenlexAndPrunedParses,
+                errorDriven,
+                categoryServices,
+                genlex,
+                processingFilter,
+                parsingFilterFactory) {
+
+  import AbstractLearnerScala._
+
+  log.info(s"Init ValidationStocGrad: numIterations=$numIterations, trainingData.size()=${trainingData.size}, trainingDataDebug.size()=${trainingDataDebug.size}, maxSentenceLength=$maxSentenceLength ...")
+  log.info(s"Init ValidationStocGrad: ... lexiconGenerationBeamSize=$lexiconGenerationBeamSize")
+  log.info(s"Init ValidationStocGrad: ... conflateParses=${if (conflateGenlexAndPrunedParses) "true" else "false"}, erroDriven=${if (errorDriven) "true" else "false"}")
+  log.info(s"Init ValidationStocGrad: ... c=$c, alpha0=$alpha0")
+  log.info(s"Init ValidationStocGrad: ... parsingFilterFactory=$parsingFilterFactory")
+
+  override def train(model: Model[SAMPLE, MR]): Unit = {
+    stocGradientNumUpdates = 0
+    super.train(model)
+  }
+
+  override protected def parameterUpdate(dataItem: DI,
+                                         realOutput: IGraphParserOutput[MR],
+                                         goodOutput: IGraphParserOutput[MR],
+                                         model: Model[SAMPLE, MR],
+                                         itemCounter: Int,
+                                         epochNumber: Int): Unit = {
+    // Create the update
+    val update = HashVectorFactory.create
+
+    // Step A: Compute the positive half of the update: conditioned on getting successful validation
+    val filter: IFilter[Category[MR]] = (e: Category[MR]) => validate(dataItem, e.getSemantics)
+    val logConditionedNorm = goodOutput.logNorm(filter)
+    // No positive update, skip the update.
+
+    if (logConditionedNorm == java.lang.Double.NEGATIVE_INFINITY) log.info("No positive update")
+    else {
+      // Case have complete valid parses.
+      val expectedFeatures = goodOutput.logExpectedFeatures(filter)
+      expectedFeatures.add(-logConditionedNorm)
+      expectedFeatures.applyFunction((value: Double) => Math.exp(value))
+      expectedFeatures.dropNoise()
+      expectedFeatures.addTimesInto(1.0, update)
+
+      // Record if the output LF equals the available gold LF (if one is available), otherwise, record using validation signal.
+      stats.count("Valid", epochNumber)
+      if (realOutput.getBestDerivations.size == 1 && isGoldDebugCorrect(dataItem, realOutput.getBestDerivations.get(0).getSemantics)) stats.appendSampleStat(itemCounter, epochNumber, GOLD_LF_IS_MAX)
+      // Record if a valid parse was found.
+      else stats.appendSampleStat(itemCounter, epochNumber, HAS_VALID_LF)
+
+      log.info(s"Positive update: $expectedFeatures")
+
+      // Step B: Compute the negative half of the update: expectation under the current model
+      val logNorm = realOutput.logNorm
+      if (logNorm == java.lang.Double.NEGATIVE_INFINITY) log.info("No negative update.")
+      else {
+        // Case have complete parses.
+        val expectedFeatures = realOutput.logExpectedFeatures
+        expectedFeatures.add(-logNorm)
+        expectedFeatures.applyFunction((value: Double) => Math.exp(value))
+        expectedFeatures.dropNoise()
+        expectedFeatures.addTimesInto(-1.0, update)
+        log.info(s"Negative update: $expectedFeatures")
+      }
+
+      // Step C: Apply the update. Validate the update
+      if (!model.isValidWeightVector(update)) throw new IllegalStateException(s"invalid update: $update")
+      // Scale the update
+      val scale = alpha0 / (1.0 + c * stocGradientNumUpdates)
+      update.multiplyBy(scale)
+      update.dropNoise()
+      stocGradientNumUpdates += 1
+      log.info(s"Scale: $scale")
+      if (update.size == 0) log.info("No update")
+      else {
+        log.info(s"Update: $update")
+
+        // Check for NaNs and super large updates
+        if (update.isBad) {
+          log.error(s"Bad update: $update -- log-norm: $logNorm -- features: ${model.getTheta.printValues(update)}")
+          throw new IllegalStateException("bad update")
+        }
+        else {
+          if (!update.valuesInRange(-100, 100))
+            log.error(s"Large update: $update -- log-norm: $logNorm -- features: ${model.getTheta.printValues(update)}")
+
+          // Do the update
+          update.addTimesInto(1, model.getTheta)
+          stats.appendSampleStat(itemCounter, epochNumber, TRIGGERED_UPDATE)
+        }
+      }
+    }
+  }
+
+  override protected def parse(dataItem: DI, dataItemModel: IDataItemModel[MR]): IGraphParserOutput[MR] =
+    parser.parse(dataItem.getSample, dataItemModel)
+
+  override protected def parse(dataItem: DI,
+                               pruningFilter: Predicate[ParsingOp[MR]],
+                               dataItemModel: IDataItemModel[MR]): IGraphParserOutput[MR] =
+    parser.parse(dataItem.getSample, pruningFilter, dataItemModel)
+
+  override protected def parse(dataItem: DI,
+                               pruningFilter: Predicate[ParsingOp[MR]],
+                               dataItemModel: IDataItemModel[MR],
+                               generatedLexicon: ILexiconImmutable[MR],
+                               beamSize: Integer): IGraphParserOutput[MR] =
+    parser.parse(dataItem.getSample, pruningFilter, dataItemModel, false, generatedLexicon, beamSize)
+
+  override protected def validate(dataItem: DI, hypothesis: MR): Boolean =
+    validator.isValid(dataItem, hypothesis)
+
+  // internal
+  private val log: ILogger = LoggerFactory.create(classOf[ValidationStocGrad[SAMPLE, DI, MR]])
+
+  private var stocGradientNumUpdates = 0
+
+}
+
+
 object ValidationStocGradScala {
 
   class Creator[SAMPLE <: IDataItem[SAMPLE], DI <: ILabeledDataItem[SAMPLE, _], MR](val name: String)
     extends IResourceObjectCreator[ValidationStocGrad[SAMPLE, DI, MR]] {
-    def this() = {
-      this("learner.validation.stocgrad")
-    }
+
+    def this() = this("learner.validation.stocgrad")
 
     @SuppressWarnings("unchecked")
     override def create(params: ParameterizedExperiment#Parameters, repo: IResourceRepository): ValidationStocGrad[SAMPLE, DI, MR] = {
@@ -153,147 +284,4 @@ object ValidationStocGradScala {
         .build
   }
 
-}
-
-class ValidationStocGradScala[SAMPLE <: IDataItem[SAMPLE], DI <: ILabeledDataItem[SAMPLE, _], MR] private
-          (val numIterations: Int,
-           val trainingData: IDataCollection[DI],
-           val trainingDataDebug: util.Map[DI, MR],
-           val maxSentenceLength: Int,
-           val lexiconGenerationBeamSize: Int,
-           val parser: IGraphParser[SAMPLE, MR],
-           val parserOutputLogger: IOutputLogger[MR],
-           val alpha0: Double,
-           val c: Double,
-           val validator: IValidator[DI, MR],
-           val conflateGenlexAndPrunedParses: Boolean,
-           val errorDriven: Boolean,
-           val categoryServices: ICategoryServices[MR],
-           val genlex: ILexiconGenerator[DI, MR, IModelImmutable[SAMPLE, MR]],
-           val processingFilter: IFilter[DI],
-           val parsingFilterFactory: IParsingFilterFactory[DI, MR])
-    extends AbstractLearner[SAMPLE, DI, IGraphParserOutput[MR], MR](
-                numIterations,
-                trainingData,
-                trainingDataDebug,
-                lexiconGenerationBeamSize,
-                parserOutputLogger,
-                conflateGenlexAndPrunedParses,
-                errorDriven,
-                categoryServices,
-                genlex,
-                processingFilter,
-                parsingFilterFactory) {
-
-  import AbstractLearner._
-
-  val log: ILogger = LoggerFactory.create(classOf[ValidationStocGrad[SAMPLE, DI, MR]])
-
-  log.info(s"Init ValidationStocGrad: numIterations=$numIterations, trainingData.size()=${trainingData.size}, trainingDataDebug.size()=${trainingDataDebug.size}, maxSentenceLength=$maxSentenceLength ...")
-  log.info(s"Init ValidationStocGrad: ... lexiconGenerationBeamSize=$lexiconGenerationBeamSize")
-  log.info(s"Init ValidationStocGrad: ... conflateParses=${if (conflateGenlexAndPrunedParses) "true" else "false"}, erroDriven=${if (errorDriven) "true" else "false"}")
-  log.info(s"Init ValidationStocGrad: ... c=$c, alpha0=$alpha0")
-  log.info(s"Init ValidationStocGrad: ... parsingFilterFactory=$parsingFilterFactory")
-
-  private var stocGradientNumUpdates = 0
-
-  override def train(model: Model[SAMPLE, MR]): Unit = {
-    stocGradientNumUpdates = 0
-    super.train(model)
-  }
-
-  override protected def parameterUpdate(dataItem: DI,
-                                         realOutput: IGraphParserOutput[MR],
-                                         goodOutput: IGraphParserOutput[MR],
-                                         model: Model[SAMPLE, MR],
-                                         itemCounter: Int,
-                                         epochNumber: Int): Unit = {
-    // Create the update
-    val update = HashVectorFactory.create
-
-    // Step A: Compute the positive half of the update: conditioned on getting successful validation
-    val filter: IFilter[Category[MR]] = (e: Category[MR]) => validate(dataItem, e.getSemantics)
-    val logConditionedNorm = goodOutput.logNorm(filter)
-    // No positive update, skip the update.
-
-    if (logConditionedNorm == java.lang.Double.NEGATIVE_INFINITY) {
-      log.info("No positive update")
-      return
-    }
-    else {
-      // Case have complete valid parses.
-      val expectedFeatures = goodOutput.logExpectedFeatures(filter)
-      expectedFeatures.add(-logConditionedNorm)
-      expectedFeatures.applyFunction((value: Double) => Math.exp(value))
-      expectedFeatures.dropNoise()
-      expectedFeatures.addTimesInto(1.0, update)
-
-      // Record if the output LF equals the available gold LF (if one is available), otherwise, record using validation signal.
-      stats.count("Valid", epochNumber)
-      if (realOutput.getBestDerivations.size == 1 && isGoldDebugCorrect(dataItem, realOutput.getBestDerivations.get(0).getSemantics)) stats.appendSampleStat(itemCounter, epochNumber, GOLD_LF_IS_MAX)
-      // Record if a valid parse was found.
-      else stats.appendSampleStat(itemCounter, epochNumber, HAS_VALID_LF)
-
-      log.info(s"Positive update: $expectedFeatures")
-    }
-
-    // Step B: Compute the negative half of the update: expectation under the current model
-    val logNorm = realOutput.logNorm
-    if (logNorm == java.lang.Double.NEGATIVE_INFINITY) log.info("No negative update.")
-    else {
-      // Case have complete parses.
-      val expectedFeatures = realOutput.logExpectedFeatures
-      expectedFeatures.add(-logNorm)
-      expectedFeatures.applyFunction((value: Double) => Math.exp(value))
-      expectedFeatures.dropNoise()
-      expectedFeatures.addTimesInto(-1.0, update)
-      log.info(s"Negative update: $expectedFeatures")
-    }
-
-    // Step C: Apply the update. Validate the update
-    if (!model.isValidWeightVector(update)) throw new IllegalStateException(s"invalid update: $update" )
-    // Scale the update
-    val scale = alpha0 / (1.0 + c * stocGradientNumUpdates)
-    update.multiplyBy(scale)
-    update.dropNoise()
-    stocGradientNumUpdates += 1
-    log.info(s"Scale: $scale")
-    if (update.size == 0) {
-      log.info("No update")
-      return
-    }
-    else log.info(s"Update: $update")
-
-    // Check for NaNs and super large updates
-    if (update.isBad) {
-      log.error(s"Bad update: $update -- log-norm: $logNorm -- features: ${model.getTheta.printValues(update)}")
-      throw new IllegalStateException("bad update")
-    }
-    else {
-      if (!update.valuesInRange(-100, 100))
-        log.error(s"Large update: $update -- log-norm: $logNorm -- features: ${model.getTheta.printValues(update)}")
-
-      // Do the update
-      update.addTimesInto(1, model.getTheta)
-      stats.appendSampleStat(itemCounter, epochNumber, TRIGGERED_UPDATE)
-    }
-  }
-
-  override protected def parse(dataItem: DI, dataItemModel: IDataItemModel[MR]): IGraphParserOutput[MR] =
-    parser.parse(dataItem.getSample, dataItemModel)
-
-  override protected def parse(dataItem: DI,
-                               pruningFilter: Predicate[ParsingOp[MR]],
-                               dataItemModel: IDataItemModel[MR]): IGraphParserOutput[MR] =
-    parser.parse(dataItem.getSample, pruningFilter, dataItemModel)
-
-  override protected def parse(dataItem: DI,
-                               pruningFilter: Predicate[ParsingOp[MR]],
-                               dataItemModel: IDataItemModel[MR],
-                               generatedLexicon: ILexiconImmutable[MR],
-                               beamSize: Integer): IGraphParserOutput[MR] =
-    parser.parse(dataItem.getSample, pruningFilter, dataItemModel, false, generatedLexicon, beamSize)
-
-  override protected def validate(dataItem: DI, hypothesis: MR): Boolean =
-    validator.isValid(dataItem, hypothesis)
 }

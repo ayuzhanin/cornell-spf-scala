@@ -15,19 +15,12 @@ import scala.collection.JavaConverters._
 /**
   * Perceptron learner for parameter update only.
   *
-  * @param DI
-  * @param MR
   */
 
 class SimplePerceptronScala(numIterations: Integer,
                             trainingData: IDataCollection[SingleSentence],
                             parser: IParser[Sentence, LogicalExpression])
   extends ILearner[Sentence, SingleSentence, Model[Sentence, LogicalExpression]] {
-
-  val log: ILogger = LoggerFactory.create(classOf[SimplePerceptronScala])
-
-  def toImmutableSeq[T](sq: collection.mutable.Seq[T]): collection.immutable.Seq[T] =
-    collection.immutable.Seq[T](sq: _*)
 
   override def train(model: Model[Sentence, LogicalExpression]): Unit = {
 
@@ -77,5 +70,12 @@ class SimplePerceptronScala(numIterations: Integer,
       }
     }
   }
+
+  // internal
+
+  private val log: ILogger = LoggerFactory.create(classOf[SimplePerceptronScala])
+
+  private def toImmutableSeq[T](sq: collection.mutable.Seq[T]): collection.immutable.Seq[T] =
+    collection.immutable.Seq[T](sq: _*)
 
 }

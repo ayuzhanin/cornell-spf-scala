@@ -18,12 +18,6 @@ import edu.cornell.cs.nlp.utils.system.MemoryReport
 import scala.collection.JavaConverters._
 import scala.util.Try
 
-object AbstractLearnerScala {
-  val GOLD_LF_IS_MAX: String = "G"
-  val HAS_VALID_LF: String = "V"
-  val TRIGGERED_UPDATE: String = "U"
-}
-
 abstract class AbstractLearnerScala[SAMPLE <: IDataItem[_],
                                     DI <: ILabeledDataItem[SAMPLE, _],
                                     PO <: IParserOutput[MR],
@@ -42,7 +36,6 @@ abstract class AbstractLearnerScala[SAMPLE <: IDataItem[_],
 
   import AbstractLearnerScala._
 
-  val log: ILogger = LoggerFactory.create(classOf[AbstractLearnerScala[SAMPLE, DI, PO, MR]])
   /**
     * Learning statistics.
     */
@@ -84,7 +77,6 @@ abstract class AbstractLearnerScala[SAMPLE <: IDataItem[_],
           log.info("Skipped training sample, due to processing filter")
 
         else {
-
           stats.count("Processed", epochNumber)
 
           Try {
@@ -155,8 +147,69 @@ abstract class AbstractLearnerScala[SAMPLE <: IDataItem[_],
     }
   }
 
+  protected def isGoldDebugCorrect(dataItem: DI, label: MR): Boolean =
+    trainingDataDebug.get(dataItem).fold(false)(_ == label)
+
+  protected def logParse(dataItem: DI,
+                         parse: IDerivation[MR],
+                         valid: Boolean,
+                         verbose: Boolean,
+                         dataItemModel: IDataItemModel[MR]): Unit =
+    logParse(dataItem, parse, valid, verbose, null, dataItemModel)
+
+  protected def logParse(dataItem: DI,
+                         parse: IDerivation[MR],
+                         valid: Boolean,
+                         verbose: Boolean,
+                         tag: String,
+                         dataItemModel: IDataItemModel[MR]): Unit = {
+    val isGold = isGoldDebugCorrect(dataItem, parse.getSemantics)
+    log.info(s"${if (isGold) "* " else "  "}${if (tag == null) "" else tag + " "}[${parse.getScore}${if (valid) ", V" else ", X"}] $parse")
+    if (verbose) {
+      parse.getMaxSteps.asScala.foreach(step => log.info("\t%s", step.toString(false, false, dataItemModel.getTheta)))
+    }
+  }
+
+  /**
+    * Parameter update method.
+    */
+  protected def parameterUpdate(dataItem: DI,
+                                realOutput: PO,
+                                goodOutput: PO,
+                                model: Model[SAMPLE, MR],
+                                itemCounter: Int,
+                                epochNumber: Int): Unit
+
+  /**
+    * Unconstrained parsing method.
+    */
+  protected def parse(dataItem: DI, dataItemModel: IDataItemModel[MR]): PO
+
+  /**
+    * Constrained parsing method.
+    */
+  protected def parse(dataItem: DI, pruningFilter: Predicate[ParsingOp[MR]], dataItemModel: IDataItemModel[MR]): PO
+
+  /**
+    * Constrained parsing method for lexical generation.
+    */
+  protected def parse(dataItem: DI,
+                      pruningFilter: Predicate[ParsingOp[MR]],
+                      dataItemModel: IDataItemModel[MR],
+                      generatedLexicon: ILexiconImmutable[MR],
+                      beamSize: Integer): PO
+
+  /**
+    * Validation method.
+    */
+  protected def validate(dataItem: DI, hypothesis: MR): Boolean
+
+  // internal
+
+  private val log: ILogger = LoggerFactory.create(classOf[AbstractLearnerScala[SAMPLE, DI, PO, MR]])
+
   // Use validation function to prune generation parses. Syntax is not used to distinguish between derivations.
-  private def getValidParses(parserOutput: PO, dataItem: DI) =
+  private def getValidParses(parserOutput: PO, dataItem: DI): List[_ <: IDerivation[MR]] =
     parserOutput.getAllDerivations.asScala.filter(e => validate(dataItem, e.getSemantics)).toList
 
   private def lexicalInduction(dataItem: DI,
@@ -225,64 +278,15 @@ abstract class AbstractLearnerScala[SAMPLE <: IDataItem[_],
     else {
       // Skip lexical induction
       log.info("Skipped GENLEX step. No generated lexical items.")
-      null
+      val nullPo: PO = null
+      nullPo
     }
   }
 
-  protected def isGoldDebugCorrect(dataItem: DI, label: MR): Boolean =
-    trainingDataDebug.get(dataItem).fold(false)(_ == label)
+}
 
-  protected def logParse(dataItem: DI,
-                         parse: IDerivation[MR],
-                         valid: Boolean,
-                         verbose: Boolean,
-                         dataItemModel: IDataItemModel[MR]): Unit =
-    logParse(dataItem, parse, valid, verbose, null, dataItemModel)
-
-  protected def logParse(dataItem: DI,
-                         parse: IDerivation[MR],
-                         valid: Boolean,
-                         verbose: Boolean,
-                         tag: String,
-                         dataItemModel: IDataItemModel[MR]): Unit = {
-    val isGold = isGoldDebugCorrect(dataItem, parse.getSemantics)
-    log.info(s"${if (isGold) "* " else "  "}${if (tag == null) "" else tag + " "}[${parse.getScore}${if (valid) ", V" else ", X"}] $parse")
-    if (verbose) {
-      parse.getMaxSteps.asScala.foreach(step => log.info("\t%s", step.toString(false, false, dataItemModel.getTheta)))
-    }
-  }
-
-  /**
-    * Parameter update method.
-    */
-  protected def parameterUpdate(dataItem: DI,
-                                realOutput: PO,
-                                goodOutput: PO,
-                                model: Model[SAMPLE, MR],
-                                itemCounter: Int,
-                                epochNumber: Int): Unit
-
-  /**
-    * Unconstrained parsing method.
-    */
-  protected def parse(dataItem: DI, dataItemModel: IDataItemModel[MR]): PO
-
-  /**
-    * Constrained parsing method.
-    */
-  protected def parse(dataItem: DI, pruningFilter: Predicate[ParsingOp[MR]], dataItemModel: IDataItemModel[MR]): PO
-
-  /**
-    * Constrained parsing method for lexical generation.
-    */
-  protected def parse(dataItem: DI,
-                      pruningFilter: Predicate[ParsingOp[MR]],
-                      dataItemModel: IDataItemModel[MR],
-                      generatedLexicon: ILexiconImmutable[MR],
-                      beamSize: Integer): PO
-
-  /**
-    * Validation method.
-    */
-  protected def validate(dataItem: DI, hypothesis: MR): Boolean
+object AbstractLearnerScala {
+  val GOLD_LF_IS_MAX: String = "G"
+  val HAS_VALID_LF: String = "V"
+  val TRIGGERED_UPDATE: String = "U"
 }
