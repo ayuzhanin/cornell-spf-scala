@@ -17,7 +17,7 @@
 package edu.cornell.cs.nlp.spf.explat.resources;
 
 import edu.cornell.cs.nlp.spf.explat.IResourceRepository;
-import edu.cornell.cs.nlp.spf.explat.ParameterizedExperiment.Parameters;
+import edu.cornell.cs.nlp.spf.explat.ParameterizedExperiment;
 import edu.cornell.cs.nlp.spf.explat.resources.usage.ResourceUsage;
 
 /**
@@ -34,14 +34,14 @@ public interface IResourceObjectCreator<T> {
 	 * @param repo
 	 * @return
 	 */
-	T create(Parameters params, IResourceRepository repo);
+	T create(ParameterizedExperiment.Parameters params, IResourceRepository repo);
 	
 	/**
 	 * The resource type.
 	 * 
 	 * @return
 	 */
-	String type();
+	String getType();
 	
 	/**
 	 * Return a usage objects describing the resource created and how it can be

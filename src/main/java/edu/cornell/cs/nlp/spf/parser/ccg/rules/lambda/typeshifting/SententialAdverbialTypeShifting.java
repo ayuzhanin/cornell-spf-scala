@@ -249,7 +249,7 @@ public class SententialAdverbialTypeShifting implements
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return type;
 		}
 

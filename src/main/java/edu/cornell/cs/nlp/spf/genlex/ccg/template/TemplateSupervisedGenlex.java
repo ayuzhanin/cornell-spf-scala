@@ -144,13 +144,13 @@ public class TemplateSupervisedGenlex<SAMPLE extends Sentence, DI extends ILabel
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return type;
 		}
 
 		@Override
 		public ResourceUsage usage() {
-			return new ResourceUsage.Builder(type(),
+			return new ResourceUsage.Builder(getType(),
 					TemplateSupervisedGenlex.class)
 							.addParam("maxTokens", "int",
 									"Max number of tokens to consider for new lexical entries")

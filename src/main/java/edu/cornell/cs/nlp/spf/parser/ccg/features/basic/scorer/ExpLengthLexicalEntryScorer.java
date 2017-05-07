@@ -71,13 +71,13 @@ public class ExpLengthLexicalEntryScorer<MR>
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return type;
 		}
 
 		@Override
 		public ResourceUsage usage() {
-			return new ResourceUsage.Builder(type(),
+			return new ResourceUsage.Builder(getType(),
 					ExpLengthLexicalEntryScorer.class)
 							.setDescription(
 									"Lexical entry scorer that computes the function coef * n^exp, where n is the number of tokens in the lexical entry")

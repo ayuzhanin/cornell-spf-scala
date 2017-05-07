@@ -14,7 +14,7 @@
  * this program; if not, write to the Free Software Foundation, Inc., 51
  * Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *******************************************************************************/
-package edu.cornell.cs.nlp.spf.parser.ccg.joint.cky;
+package edu.cornell.cs.nlp.spf.parser.joint.cky;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -151,13 +151,13 @@ public class JointInferenceChartLogger<ESTEP, ERESULT>
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return name;
 		}
 
 		@Override
 		public ResourceUsage usage() {
-			return new ResourceUsage.Builder(type(),
+			return new ResourceUsage.Builder(getType(),
 					JointInferenceChartLogger.class)
 							.setDescription(
 									"Joint output logger that will dump CKY charts to logs")

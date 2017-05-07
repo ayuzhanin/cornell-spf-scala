@@ -101,13 +101,13 @@ public class ModelLogger {
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return "logger.model";
 		}
 
 		@Override
 		public ResourceUsage usage() {
-			return new ResourceUsage.Builder(type(), ModelLogger.class)
+			return new ResourceUsage.Builder(getType(), ModelLogger.class)
 					.setDescription("Logs models in a human-readable format")
 					.addParam(
 							"cluster",

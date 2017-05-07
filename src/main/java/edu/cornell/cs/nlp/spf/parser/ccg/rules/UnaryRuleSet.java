@@ -101,7 +101,7 @@ public class UnaryRuleSet<MR> implements Iterable<IUnaryParseRule<MR>> {
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return type;
 		}
 

@@ -380,7 +380,7 @@ public class UnificationGenlex<SAMPLE extends Sentence, DI extends ILabeledDataI
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return type;
 		}
 

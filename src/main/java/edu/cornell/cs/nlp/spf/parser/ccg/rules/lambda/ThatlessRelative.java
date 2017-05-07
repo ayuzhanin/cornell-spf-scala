@@ -112,7 +112,7 @@ public class ThatlessRelative extends AbstractApplication<LogicalExpression> {
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return type;
 		}
 

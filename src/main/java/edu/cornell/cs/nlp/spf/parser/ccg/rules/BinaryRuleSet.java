@@ -102,7 +102,7 @@ public class BinaryRuleSet<MR> implements Iterable<IBinaryParseRule<MR>> {
 		}
 		
 		@Override
-		public String type() {
+		public String getType() {
 			return type;
 		}
 		

@@ -93,7 +93,7 @@ public class SimpleReversibleApplicationTypeShiftingCreator implements
 	}
 
 	@Override
-	public String type() {
+	public String getType() {
 		return type;
 	}
 

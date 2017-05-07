@@ -45,7 +45,7 @@ import edu.cornell.cs.nlp.spf.ccg.lexicon.LexicalEntry;
 import edu.cornell.cs.nlp.spf.ccg.lexicon.Lexicon;
 import edu.cornell.cs.nlp.spf.data.IDataItem;
 import edu.cornell.cs.nlp.spf.explat.IResourceRepository;
-import edu.cornell.cs.nlp.spf.explat.ParameterizedExperiment.Parameters;
+import edu.cornell.cs.nlp.spf.explat.ParameterizedExperiment;
 import edu.cornell.cs.nlp.spf.explat.resources.IResourceObjectCreator;
 import edu.cornell.cs.nlp.spf.explat.resources.usage.ResourceUsage;
 import edu.cornell.cs.nlp.spf.parser.ccg.IParseStep;
@@ -357,7 +357,7 @@ public class Model<DI extends IDataItem<?>, MR>
 
 		@SuppressWarnings("unchecked")
 		@Override
-		public Model<DI, MR> create(Parameters params,
+		public Model<DI, MR> create(ParameterizedExperiment.Parameters params,
 				IResourceRepository repo) {
 
 			// Case loading from file.
@@ -394,13 +394,13 @@ public class Model<DI extends IDataItem<?>, MR>
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return "model";
 		}
 
 		@Override
 		public ResourceUsage usage() {
-			return new ResourceUsage.Builder(type(), Model.class)
+			return new ResourceUsage.Builder(getType(), Model.class)
 					.setDescription(
 							"Parsing model, including lexicon, features and a weight vector")
 					.addParam("lexicon", "id", "Lexicon to use with this model")

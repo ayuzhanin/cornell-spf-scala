@@ -131,7 +131,7 @@ public class ExactMatchTestingStatistics<SAMPLE, LABEL, DI extends ILabeledDataI
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return type;
 		}
 

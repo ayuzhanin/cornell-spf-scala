@@ -129,7 +129,7 @@ public class CompositeLexiconGenerator<DI extends IDataItem<?>, MR, MODEL extend
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return type;
 		}
 

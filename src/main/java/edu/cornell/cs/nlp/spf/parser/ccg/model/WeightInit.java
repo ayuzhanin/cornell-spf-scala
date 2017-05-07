@@ -86,7 +86,7 @@ public class WeightInit<DI extends IDataItem<?>, MR>
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return type;
 		}
 

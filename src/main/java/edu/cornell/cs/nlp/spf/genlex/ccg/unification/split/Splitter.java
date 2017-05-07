@@ -60,13 +60,13 @@ public class Splitter implements IUnificationSplitter {
 		}
 		
 		@Override
-		public String type() {
+		public String getType() {
 			return "splitter.unification";
 		}
 		
 		@Override
 		public ResourceUsage usage() {
-			return new ResourceUsage.Builder(type(), Splitter.class)
+			return new ResourceUsage.Builder(getType(), Splitter.class)
 					.setDescription(
 							"Logical expression splitter for unification-based GENLEX")
 					.build();

@@ -109,13 +109,13 @@ public class LogicalExpressionCoordinationFeatureSet<DI extends IDataItem<?>>
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return "feat.logexp.coordination";
 		}
 
 		@Override
 		public ResourceUsage usage() {
-			return new ResourceUsage.Builder(type(),
+			return new ResourceUsage.Builder(getType(),
 					LogicalExpressionCoordinationFeatureSet.class)
 					.setDescription(
 							"Complete logical expression coordination features")

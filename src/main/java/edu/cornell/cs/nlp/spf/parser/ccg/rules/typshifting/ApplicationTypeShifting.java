@@ -140,7 +140,7 @@ public class ApplicationTypeShifting<MR> implements IUnaryParseRule<MR> {
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return type;
 		}
 

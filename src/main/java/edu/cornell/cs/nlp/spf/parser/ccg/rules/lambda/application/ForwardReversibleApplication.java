@@ -99,7 +99,7 @@ public class ForwardReversibleApplication extends AbstractReversibleApplication 
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return type;
 		}
 

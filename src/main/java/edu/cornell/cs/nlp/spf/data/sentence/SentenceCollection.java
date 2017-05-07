@@ -109,13 +109,13 @@ public class SentenceCollection implements IDataCollection<Sentence> {
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return type;
 		}
 
 		@Override
 		public ResourceUsage usage() {
-			return new ResourceUsage.Builder(type(), SentenceCollection.class)
+			return new ResourceUsage.Builder(getType(), SentenceCollection.class)
 					.setDescription("Collection of sentences")
 					.addParam("tokenizer", ITokenizer.class,
 							"Tokenizer to process the sentence string (default: default tokenizer)")

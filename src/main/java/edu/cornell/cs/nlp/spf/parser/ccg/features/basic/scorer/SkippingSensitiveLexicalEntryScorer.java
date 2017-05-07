@@ -77,13 +77,13 @@ public class SkippingSensitiveLexicalEntryScorer<MR> implements
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return "scorer.lex.skipping";
 		}
 
 		@Override
 		public ResourceUsage usage() {
-			return new ResourceUsage.Builder(type(),
+			return new ResourceUsage.Builder(getType(),
 					SkippingSensitiveLexicalEntryScorer.class)
 					.setDescription(
 							"Lexical entry scorer with the ability to score EMPTY categories (skipped words)")

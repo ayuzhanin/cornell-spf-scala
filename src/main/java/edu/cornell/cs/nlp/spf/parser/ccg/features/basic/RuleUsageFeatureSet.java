@@ -100,13 +100,13 @@ public class RuleUsageFeatureSet<DI extends IDataItem<?>, MR> implements
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return "feat.rules.count";
 		}
 
 		@Override
 		public ResourceUsage usage() {
-			return new ResourceUsage.Builder(type(), RuleUsageFeatureSet.class)
+			return new ResourceUsage.Builder(getType(), RuleUsageFeatureSet.class)
 					.setDescription(
 							"Count features for rule usage. Feature tag: RULE.")
 					.addParam("unaryRulesOnly", Boolean.class,

@@ -77,13 +77,13 @@ public class LogicalExpressionCooccurrenceFeatureSet<DI extends IDataItem<?>>
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return "feat.logexp.cooc";
 		}
 
 		@Override
 		public ResourceUsage usage() {
-			return new ResourceUsage.Builder(type(),
+			return new ResourceUsage.Builder(getType(),
 					LogicalExpressionCooccurrenceFeatureSet.class)
 							.setDescription(
 									"Co-occurrence features for constants in complete logical expressions")

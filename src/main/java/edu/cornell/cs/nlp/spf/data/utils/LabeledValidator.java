@@ -60,13 +60,13 @@ public class LabeledValidator<DI extends ILabeledDataItem<?, LABEL>, LABEL>
 		}
 		
 		@Override
-		public String type() {
+		public String getType() {
 			return type;
 		}
 		
 		@Override
 		public ResourceUsage usage() {
-			return new ResourceUsage.Builder(type(), LabeledValidator.class)
+			return new ResourceUsage.Builder(getType(), LabeledValidator.class)
 					.build();
 		}
 		

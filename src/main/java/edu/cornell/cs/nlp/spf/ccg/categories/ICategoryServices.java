@@ -23,7 +23,7 @@ import java.io.Serializable;
  *
  * @author Yoav Artzi
  * @param <MR>
- *            Semantic type
+ *            semantic type
  */
 public interface ICategoryServices<MR> extends Serializable {
 

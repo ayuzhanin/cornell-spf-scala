@@ -64,13 +64,13 @@ public class UniformScorer<T> implements ISerializableScorer<T> {
 		}
 		
 		@Override
-		public String type() {
+		public String getType() {
 			return type;
 		}
 		
 		@Override
 		public ResourceUsage usage() {
-			return new ResourceUsage.Builder(type(), UniformScorer.class)
+			return new ResourceUsage.Builder(getType(), UniformScorer.class)
 					.setDescription("Uniform scoring function")
 					.addParam("weight", "double",
 							"Weight value. This weight will be given to any object the scorer recieves.")

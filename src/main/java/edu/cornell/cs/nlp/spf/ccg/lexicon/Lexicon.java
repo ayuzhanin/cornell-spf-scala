@@ -231,13 +231,13 @@ public class Lexicon<MR> implements ILexicon<MR> {
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return "lexicon";
 		}
 
 		@Override
 		public ResourceUsage usage() {
-			return new ResourceUsage.Builder(type(), Lexicon.class)
+			return new ResourceUsage.Builder(getType(), Lexicon.class)
 					.addParam("files", File.class,
 							"List of files to read entries from")
 					.addParam("origin", String.class,

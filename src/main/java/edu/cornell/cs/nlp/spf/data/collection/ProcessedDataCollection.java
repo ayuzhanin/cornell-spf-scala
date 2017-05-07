@@ -84,7 +84,7 @@ public class ProcessedDataCollection<DI extends IDataItem<?>, SRC extends IDataI
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return type;
 		}
 

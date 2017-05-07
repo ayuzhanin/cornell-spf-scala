@@ -108,7 +108,7 @@ public class PunctuationRule<MR> implements IBinaryReversibleParseRule<MR> {
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return type;
 		}
 

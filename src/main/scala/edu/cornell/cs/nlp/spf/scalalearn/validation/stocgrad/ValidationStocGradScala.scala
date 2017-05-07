@@ -42,21 +42,21 @@ import scala.collection.JavaConverters._
 
 class ValidationStocGradScala[SAMPLE <: IDataItem[SAMPLE], DI <: ILabeledDataItem[SAMPLE, _], MR] private
           (val numIterations: Int,
-           override val trainingData: IDataCollection[DI],
-           override val trainingDataDebug: util.Map[DI, MR],
+           val trainingData: IDataCollection[DI],
+           val trainingDataDebug: util.Map[DI, MR],
            val maxSentenceLength: Int,
-           override val lexiconGenerationBeamSize: Int,
+           val lexiconGenerationBeamSize: Int,
            val parser: IGraphParser[SAMPLE, MR],
            override val parserOutputLogger: IOutputLogger[MR],
            val alpha0: Double,
            val c: Double,
            val validator: IValidator[DI, MR],
-           override val conflateGenlexAndPrunedParses: Boolean,
-           override val errorDriven: Boolean,
-           override val categoryServices: ICategoryServices[MR],
-           override val genlex: ILexiconGenerator[DI, MR, IModelImmutable[SAMPLE, MR]],
-           override val processingFilter: IFilter[DI],
-           override val parsingFilterFactory: IParsingFilterFactory[DI, MR])
+           val conflateGenlexAndPrunedParses: Boolean,
+           val errorDriven: Boolean,
+           val categoryServices: ICategoryServices[MR],
+           val genlex: ILexiconGenerator[DI, MR, IModelImmutable[SAMPLE, MR]],
+           val processingFilter: IFilter[DI],
+           val parsingFilterFactory: IParsingFilterFactory[DI, MR])
     extends AbstractLearnerScala[SAMPLE, DI, IGraphParserOutput[MR], MR](
                 numIterations,
                 trainingData,
@@ -175,7 +175,7 @@ class ValidationStocGradScala[SAMPLE <: IDataItem[SAMPLE], DI <: ILabeledDataIte
     validator.isValid(dataItem, hypothesis)
 
   // internal
-  private val log: ILogger = LoggerFactory.create(classOf[ValidationStocGrad[SAMPLE, DI, MR]])
+  private val log: ILogger = LoggerFactory.create(classOf[ValidationStocGradScala[SAMPLE, DI, MR]])
 
   private var stocGradientNumUpdates = 0
 
@@ -184,13 +184,11 @@ class ValidationStocGradScala[SAMPLE <: IDataItem[SAMPLE], DI <: ILabeledDataIte
 
 object ValidationStocGradScala {
 
-  class Creator[SAMPLE <: IDataItem[SAMPLE], DI <: ILabeledDataItem[SAMPLE, _], MR](val name: String)
-    extends IResourceObjectCreator[ValidationStocGrad[SAMPLE, DI, MR]] {
+  class Creator[SAMPLE <: IDataItem[SAMPLE], DI <: ILabeledDataItem[SAMPLE, _], MR](val name: String = "learner.validation.stocgrad")
+    extends IResourceObjectCreator[ValidationStocGradScala[SAMPLE, DI, MR]] {
 
-    def this() = this("learner.validation.stocgrad")
-
-    @SuppressWarnings("unchecked")
-    override def create(params: ParameterizedExperiment#Parameters, repo: IResourceRepository): ValidationStocGrad[SAMPLE, DI, MR] = {
+    @SuppressWarnings(Array("unchecked"))
+    override def create(params: ParameterizedExperiment#Parameters, repo: IResourceRepository): ValidationStocGradScala[SAMPLE, DI, MR] = {
 
       val numIterations =
         if (params.contains("iter")) params.get("iter").toInt
@@ -244,7 +242,7 @@ object ValidationStocGradScala {
         if (params.contains("filterFactory")) repo.get(params.get("filterFactory")).asInstanceOf[IParsingFilterFactory[DI, MR]]
         else new StubFilterFactory[DI, MR]
 
-      new ValidationStocGrad[SAMPLE, DI, MR](
+      new ValidationStocGradScala[SAMPLE, DI, MR](
         numIterations,
         trainingData,
         trainingDataDebug,
@@ -263,10 +261,10 @@ object ValidationStocGradScala {
         parsingFilterFactory)
     }
 
-    override def `type`: String = name
+    override def getType: String = name
 
     override def usage: ResourceUsage =
-      new ResourceUsage.Builder(`type`, classOf[ValidationPerceptron[_ <: IDataItem[_], _ <: ILabeledDataItem[_, _], _]])
+      new ResourceUsage.Builder(getType, classOf[ValidationPerceptron[_ <: IDataItem[_], _ <: ILabeledDataItem[_, _], _]])
         .setDescription("Validation-based stochastic gradient learner")
         .addParam("data", "id", "Training data")
         .addParam("genlex", "ILexiconGenerator", "GENLEX procedure")

@@ -70,7 +70,7 @@ public class ForwardApplication<MR> extends AbstractApplication<MR> {
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return type;
 		}
 

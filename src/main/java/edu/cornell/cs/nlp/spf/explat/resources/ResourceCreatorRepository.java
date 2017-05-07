@@ -39,11 +39,11 @@ public class ResourceCreatorRepository implements
 	}
 
 	public final void registerResourceCreator(IResourceObjectCreator<?> creator) {
-		if (creators.containsKey(creator.type())) {
+		if (creators.containsKey(creator.getType())) {
 			throw new IllegalStateException(
 					"Trying to register an existing resource ID: " + creator);
 		}
-		creators.put(creator.type(), creator);
+		creators.put(creator.getType(), creator);
 	}
 
 }

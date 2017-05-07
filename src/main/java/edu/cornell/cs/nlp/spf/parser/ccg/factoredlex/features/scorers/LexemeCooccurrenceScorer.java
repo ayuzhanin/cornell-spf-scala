@@ -129,13 +129,13 @@ public class LexemeCooccurrenceScorer implements ISerializableScorer<Lexeme> {
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return "scorer.lexeme.cooc";
 		}
 
 		@Override
 		public ResourceUsage usage() {
-			return new ResourceUsage.Builder(type(),
+			return new ResourceUsage.Builder(getType(),
 					LexemeCooccurrenceScorer.class)
 							.setDescription(
 									"Scorer to score a lexical entry based on its lexeme and a cooccurrence table of constants and tokens")

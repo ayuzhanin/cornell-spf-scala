@@ -185,13 +185,13 @@ public class MasterCompositeLexicon<MR> implements ILexicon<MR> {
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return "lexicon.composite";
 		}
 
 		@Override
 		public ResourceUsage usage() {
-			return new ResourceUsage.Builder(type(),
+			return new ResourceUsage.Builder(getType(),
 					MasterCompositeLexicon.class)
 					.setDescription(
 							"Lexicon that is made of a union of different lexicons")

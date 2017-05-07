@@ -227,13 +227,13 @@ public class ExecTester<SAMPLE extends IDataItem<?>, RESULT, DI extends ILabeled
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return resourceName;
 		}
 
 		@Override
 		public ResourceUsage usage() {
-			return new ResourceUsage.Builder(type(), ExecTester.class)
+			return new ResourceUsage.Builder(getType(), ExecTester.class)
 					.addParam("sloppyFilter", "id",
 							"IFilter used to decide what data items to skip when doing sloppy inference (e.g., skipping words)")
 					.build();

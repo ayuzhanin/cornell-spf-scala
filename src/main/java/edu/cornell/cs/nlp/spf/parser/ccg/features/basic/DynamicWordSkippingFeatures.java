@@ -93,7 +93,7 @@ public class DynamicWordSkippingFeatures<DI extends IDataItem<?>, MR>
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return type;
 		}
 

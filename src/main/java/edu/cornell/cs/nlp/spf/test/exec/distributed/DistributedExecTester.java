@@ -295,13 +295,13 @@ public class DistributedExecTester<SAMPLE extends IDataItem<Sentence>, RESULT, D
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return resourceName;
 		}
 
 		@Override
 		public ResourceUsage usage() {
-			return new ResourceUsage.Builder(type(),
+			return new ResourceUsage.Builder(getType(),
 					DistributedExecTester.class)
 					.addParam(
 							"sloppyFilter",

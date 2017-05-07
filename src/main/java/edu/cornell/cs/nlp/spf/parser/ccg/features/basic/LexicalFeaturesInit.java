@@ -126,7 +126,7 @@ public class LexicalFeaturesInit<DI extends IDataItem<?>, MR> implements
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return type;
 		}
 

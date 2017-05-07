@@ -201,7 +201,7 @@ class SituatedValidationPerceptronScala[SAMPLE <: ISituatedDataItem[Sentence, _]
 
 object SituatedValidationPerceptronScala {
 
-  case class Creator[SAMPLE <: ISituatedDataItem[Sentence, _], MR, ESTEP, ERESULT, DI <: ILabeledDataItem[SAMPLE, _]]()
+  case class Creator[SAMPLE <: ISituatedDataItem[Sentence, _], MR, ESTEP, ERESULT, DI <: ILabeledDataItem[SAMPLE, _]](name: String = "learner.weakp.valid.situated")
     extends IResourceObjectCreator[SituatedValidationPerceptronScala[SAMPLE, MR, ESTEP, ERESULT, DI]] {
 
     override def create(params: ParameterizedExperiment#Parameters, repo: IResourceRepository): SituatedValidationPerceptronScala[SAMPLE, MR, ESTEP, ERESULT, DI] = {
@@ -288,14 +288,14 @@ object SituatedValidationPerceptronScala {
     /**
       * The resource type.
       */
-    override def `type`(): String = ???
+    override def getType(): String = name
 
     /**
       * Return a usage objects describing the resource created and how it can be
       * created.
       */
     override def usage(): ResourceUsage =
-      new ResourceUsage.Builder(`type`(), classOf[SituatedValidationPerceptronScala[SAMPLE, MR, ESTEP, ERESULT, DI]])
+      new ResourceUsage.Builder(getType(), classOf[SituatedValidationPerceptronScala[SAMPLE, MR, ESTEP, ERESULT, DI]])
         .setDescription("Validation senstive perceptron for situated learning of models with situated inference (cite: Artzi and Zettlemoyer 2013)")
         .addParam("data", "id", "Training data")
         .addParam("hard", "boolean", "Use hard updates (i.e., only use max scoring valid parses/evaluation as positive samples). Options: true, false. Default: false")

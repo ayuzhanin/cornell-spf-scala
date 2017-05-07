@@ -157,7 +157,7 @@ public class ForwardTypeRaisedComposition extends
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return type;
 		}
 

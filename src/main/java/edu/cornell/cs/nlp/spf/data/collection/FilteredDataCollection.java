@@ -90,7 +90,7 @@ public class FilteredDataCollection<DI extends IDataItem<?>>
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return type;
 		}
 

@@ -49,7 +49,7 @@ public class SerializedObjectCreator implements IResourceObjectCreator<Object> {
 	}
 
 	@Override
-	public String type() {
+	public String getType() {
 		return type;
 	}
 

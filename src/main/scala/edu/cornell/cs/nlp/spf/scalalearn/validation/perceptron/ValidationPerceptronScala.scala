@@ -52,27 +52,27 @@ import edu.cornell.cs.nlp.utils.log.{ILogger, LoggerFactory}
   * </p>
   *
   * @tparam SAMPLE  Data item to use for inference.
-  * @tparam DI       Data item for learning.
-  * @tparam MR       Meaning representation.
+  * @tparam DI      Data item for learning.
+  * @tparam MR      Meaning representation.
   */
 
 class ValidationPerceptronScala[SAMPLE <: IDataItem[_],
                                 DI <: ILabeledDataItem[SAMPLE, _],
                                 MR] private(val numIterations: Int,
-                                            override val trainingData: IDataCollection[DI],
-                                            override val trainingDataDebug: java.util.Map[DI, MR],
-                                            override val lexiconGenerationBeamSize: Int,
+                                            val trainingData: IDataCollection[DI],
+                                            val trainingDataDebug: java.util.Map[DI, MR],
+                                            val lexiconGenerationBeamSize: Int,
                                             val parser: IParser[SAMPLE, MR],
-                                            override val parserOutputLogger: IOutputLogger[MR],
-                                            override val conflateGenlexAndPrunedParses: Boolean,
-                                            override val errorDriven: Boolean,
-                                            override val categoryServices: ICategoryServices[MR],
-                                            override val genlex: ILexiconGenerator[DI, MR, IModelImmutable[SAMPLE, MR]],
+                                            override protected val parserOutputLogger: IOutputLogger[MR],
+                                            val conflateGenlexAndPrunedParses: Boolean,
+                                            val errorDriven: Boolean,
+                                            val categoryServices: ICategoryServices[MR],
+                                            val genlex: ILexiconGenerator[DI, MR, IModelImmutable[SAMPLE, MR]],
                                             val margin: Double,
                                             val hardUpdates: Boolean,
                                             val validator: IValidator[DI, MR],
-                                            override val processingFilter: IFilter[DI],
-                                            override val parsingFilterFactory: IParsingFilterFactory[DI, MR])
+                                            val processingFilter: IFilter[DI],
+                                            val parsingFilterFactory: IParsingFilterFactory[DI, MR])
   extends AbstractLearnerScala[SAMPLE, DI, IParserOutput[MR], MR](numIterations,
                                                             trainingData,
                                                             trainingDataDebug.asScala.toMap,
@@ -197,7 +197,7 @@ class ValidationPerceptronScala[SAMPLE <: IDataItem[_],
     (valids, invalids)
   }
 
-  private def constructUpdate[MR, P <: IDerivation[MR],MODEL <: IModelImmutable[_, MR]]
+  private def constructUpdate[P <: IDerivation[MR], MODEL <: IModelImmutable[_, MR]]
                              (violatingValidParses: List[P], violatingInvalidParses: List[P], model: MODEL): IHashVector = {
     // Create the parameter update
     val update = HashVectorFactory.create
@@ -215,7 +215,7 @@ class ValidationPerceptronScala[SAMPLE <: IDataItem[_],
     update
   }
 
-  private def marginViolatingSets[LF, P <: IDerivation[LF], MODEL <: IModelImmutable[_, LF]]
+  private def marginViolatingSets[P <: IDerivation[MR], MODEL <: IModelImmutable[_, MR]]
                                  (model: MODEL, margin: Double, validParses: List[P], invalidParses: List[P]): (List[P], List[P]) = {
     // Construct margin violating sets
     val invalids = invalidParses.map((_, false))
@@ -247,14 +247,10 @@ class ValidationPerceptronScala[SAMPLE <: IDataItem[_],
 
 object ValidationPerceptronScala {
 
-  class Creator[SAMPLE <: IDataItem[_], DI <: ILabeledDataItem[SAMPLE, _], MR](val name: String)
+  class Creator[SAMPLE <: IDataItem[_], DI <: ILabeledDataItem[SAMPLE, _], MR](val name: String = "learner.validation.perceptron")
     extends IResourceObjectCreator[ValidationPerceptronScala[SAMPLE, DI, MR]] {
 
-    def this() = {
-      this("learner.validation.perceptron")
-    }
-
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings(Array("unchecked"))
     override def create(params: ParameterizedExperiment#Parameters, repo: IResourceRepository): ValidationPerceptronScala[SAMPLE, DI, MR] = {
 
       val numIterations =
@@ -324,10 +320,10 @@ object ValidationPerceptronScala {
         parsingFilterFactory)
     }
 
-    override def `type`: String = name
+    override def getType: String = name
 
     override def usage: ResourceUsage =
-      new ResourceUsage.Builder(`type`, classOf[ValidationPerceptronScala[_ <: IDataItem[_], _ <: ILabeledDataItem[_, _], _]])
+      new ResourceUsage.Builder(getType, classOf[ValidationPerceptronScala[_ <: IDataItem[_], _ <: ILabeledDataItem[_, _], _]])
         .setDescription("Validation-based perceptron")
         .addParam("data", "id", "Training data")
         .addParam("genlex", "ILexiconGenerator", "GENLEX procedure")

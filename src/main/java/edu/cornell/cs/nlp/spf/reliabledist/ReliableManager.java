@@ -677,7 +677,7 @@ public class ReliableManager implements Runnable, Shutdownable {
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return type;
 		}
 

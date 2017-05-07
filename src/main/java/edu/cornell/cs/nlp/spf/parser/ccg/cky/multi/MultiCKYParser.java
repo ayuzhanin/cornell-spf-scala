@@ -502,7 +502,7 @@ public class MultiCKYParser<DI extends Sentence, MR>
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return type;
 		}
 

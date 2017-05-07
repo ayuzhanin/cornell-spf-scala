@@ -72,7 +72,7 @@ public class AdverbialTopicalisationTypeShifting extends
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return type;
 		}
 

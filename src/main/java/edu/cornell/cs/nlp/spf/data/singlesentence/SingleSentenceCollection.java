@@ -185,13 +185,13 @@ public class SingleSentenceCollection
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return "data.single";
 		}
 
 		@Override
 		public ResourceUsage usage() {
-			return new ResourceUsage.Builder(type(),
+			return new ResourceUsage.Builder(getType(),
 					SingleSentenceCollection.class)
 							.setDescription(
 									"Collection for pairs of sentences and logical forms")

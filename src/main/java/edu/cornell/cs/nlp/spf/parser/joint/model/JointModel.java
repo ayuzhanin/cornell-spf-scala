@@ -32,7 +32,7 @@ import edu.cornell.cs.nlp.spf.ccg.lexicon.ILexicon;
 import edu.cornell.cs.nlp.spf.ccg.lexicon.Lexicon;
 import edu.cornell.cs.nlp.spf.data.situated.ISituatedDataItem;
 import edu.cornell.cs.nlp.spf.explat.IResourceRepository;
-import edu.cornell.cs.nlp.spf.explat.ParameterizedExperiment.Parameters;
+import edu.cornell.cs.nlp.spf.explat.ParameterizedExperiment;
 import edu.cornell.cs.nlp.spf.explat.resources.IResourceObjectCreator;
 import edu.cornell.cs.nlp.spf.explat.resources.usage.ResourceUsage;
 import edu.cornell.cs.nlp.spf.parser.ccg.model.Model;
@@ -149,7 +149,7 @@ public class JointModel<DI extends ISituatedDataItem<?, ?>, MR, ESTEP> extends
 
 		@SuppressWarnings("unchecked")
 		@Override
-		public JointModel<DI, MR, ESTEP> create(Parameters params,
+		public JointModel<DI, MR, ESTEP> create(ParameterizedExperiment.Parameters params,
 				IResourceRepository repo) {
 			final JointModel.Builder<DI, MR, ESTEP> builder = new JointModel.Builder<DI, MR, ESTEP>();
 
@@ -190,13 +190,13 @@ public class JointModel<DI extends ISituatedDataItem<?, ?>, MR, ESTEP> extends
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return "model.joint";
 		}
 
 		@Override
 		public ResourceUsage usage() {
-			return new ResourceUsage.Builder(type(), JointModel.class)
+			return new ResourceUsage.Builder(getType(), JointModel.class)
 					.setDescription(
 							"Model for joint inference of parsing and 'execution'")
 					.addParam("lexicon", "id", "The model's lexicon (ILexicon)")

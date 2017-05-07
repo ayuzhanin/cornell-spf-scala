@@ -79,7 +79,7 @@ public class SimpleFullParseFilter implements
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return type;
 		}
 

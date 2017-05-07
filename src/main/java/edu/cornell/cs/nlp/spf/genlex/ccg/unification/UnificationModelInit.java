@@ -85,7 +85,7 @@ public class UnificationModelInit implements
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return type;
 		}
 

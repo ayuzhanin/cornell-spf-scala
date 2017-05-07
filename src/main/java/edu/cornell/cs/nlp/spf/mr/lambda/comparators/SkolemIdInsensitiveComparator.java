@@ -71,13 +71,13 @@ public class SkolemIdInsensitiveComparator implements
 		}
 		
 		@Override
-		public String type() {
+		public String getType() {
 			return type;
 		}
 		
 		@Override
 		public ResourceUsage usage() {
-			return new ResourceUsage.Builder(type(),
+			return new ResourceUsage.Builder(getType(),
 					StructureOnlyComaprator.class)
 					.addParam("comparator", ILogicalExpressionComparator.class,
 							"Base comparator to use (default is taken from LLS)")

@@ -318,7 +318,7 @@ public class TemplateCoarseGenlex<DI extends Sentence> extends
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return type;
 		}
 

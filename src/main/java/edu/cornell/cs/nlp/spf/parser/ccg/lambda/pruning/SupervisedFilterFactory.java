@@ -404,7 +404,7 @@ public class SupervisedFilterFactory<DI extends ILabeledDataItem<?, LogicalExpre
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return type;
 		}
 

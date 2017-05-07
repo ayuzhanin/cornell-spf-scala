@@ -542,13 +542,13 @@ public class SituatedValidationPerceptron<SAMPLE extends ISituatedDataItem<Sente
         }
 
         @Override
-        public String type() {
+        public String getType() {
             return name;
         }
 
         @Override
         public ResourceUsage usage() {
-            return new ResourceUsage.Builder(type(),
+            return new ResourceUsage.Builder(getType(),
                     SituatedValidationPerceptron.class)
                     .setDescription("Validation senstive perceptron for situated learning of models with situated inference (cite: Artzi and Zettlemoyer 2013)")
                     .addParam("data", "id", "Training data")

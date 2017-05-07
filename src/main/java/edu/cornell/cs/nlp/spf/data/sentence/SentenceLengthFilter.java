@@ -63,7 +63,7 @@ public class SentenceLengthFilter<DI extends IDataItem<Sentence>> implements
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return type;
 		}
 

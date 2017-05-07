@@ -69,7 +69,7 @@ public class CompositionCreator<MR> implements
 	}
 
 	@Override
-	public String type() {
+	public String getType() {
 		return type;
 	}
 

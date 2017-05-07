@@ -79,13 +79,13 @@ public class OriginLexemeScorer implements ISerializableScorer<Lexeme> {
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return "scorer.lexeme.origin";
 		}
 
 		@Override
 		public ResourceUsage usage() {
-			return new ResourceUsage.Builder(type(), OriginLexemeScorer.class)
+			return new ResourceUsage.Builder(getType(), OriginLexemeScorer.class)
 					.setDescription(
 							"Lexeme scorer that assigns different constants to lexical entries based on their origin")
 					.addParam("default", "id",

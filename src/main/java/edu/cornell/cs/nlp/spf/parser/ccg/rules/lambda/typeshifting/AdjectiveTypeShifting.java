@@ -71,7 +71,7 @@ public class AdjectiveTypeShifting extends AbstractShiftingRule {
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return type;
 		}
 

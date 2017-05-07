@@ -136,13 +136,13 @@ public class ChartLogger<MR> implements IOutputLogger<MR> {
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return name;
 		}
 
 		@Override
 		public ResourceUsage usage() {
-			return new ResourceUsage.Builder(type(), ChartLogger.class)
+			return new ResourceUsage.Builder(getType(), ChartLogger.class)
 					.setDescription(
 							"Output logger that will dump CKY charts to logs")
 					.addParam("outputDir", "dir",

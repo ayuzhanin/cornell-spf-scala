@@ -91,13 +91,13 @@ public class CompositeDataCollection<DI extends IDataItem<?>>
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return resourceName;
 		}
 
 		@Override
 		public ResourceUsage usage() {
-			return new ResourceUsage.Builder(type(),
+			return new ResourceUsage.Builder(getType(),
 					CompositeDataCollection.class)
 							.setDescription(
 									"Composite dataset. Concatenates separate datasets of the same type into a single one")

@@ -217,13 +217,13 @@ public class LexicalFeatureSet<DI extends IDataItem<?>, MR>
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return "feat.lex";
 		}
 
 		@Override
 		public ResourceUsage usage() {
-			return new ResourceUsage.Builder(type(), LexicalFeatureSet.class)
+			return new ResourceUsage.Builder(getType(), LexicalFeatureSet.class)
 					.addParam("syntaxAttrib", Boolean.class,
 							"Compute syntax attribute features (default: false)")
 					.addParam("filter", IFilter.class,

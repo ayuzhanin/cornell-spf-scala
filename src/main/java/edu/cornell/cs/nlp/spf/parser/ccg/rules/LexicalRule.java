@@ -85,7 +85,7 @@ public class LexicalRule<MR> implements ILexicalRule<MR> {
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return type;
 		}
 

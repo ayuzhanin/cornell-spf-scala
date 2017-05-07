@@ -70,13 +70,13 @@ public class LexiconModelInit<DI extends IDataItem<?>, MR> implements
 		}
 		
 		@Override
-		public String type() {
+		public String getType() {
 			return "init.lex";
 		}
 		
 		@Override
 		public ResourceUsage usage() {
-			return new ResourceUsage.Builder(type(), LexiconModelInit.class)
+			return new ResourceUsage.Builder(getType(), LexiconModelInit.class)
 					.setDescription(
 							"Intializer to add lexical entries to a model")
 					.addParam("lexicon", "id",

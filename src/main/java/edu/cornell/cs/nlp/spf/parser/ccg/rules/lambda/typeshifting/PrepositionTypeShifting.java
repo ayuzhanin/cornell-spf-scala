@@ -68,7 +68,7 @@ public class PrepositionTypeShifting extends AbstractShiftingRule {
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return type;
 		}
 

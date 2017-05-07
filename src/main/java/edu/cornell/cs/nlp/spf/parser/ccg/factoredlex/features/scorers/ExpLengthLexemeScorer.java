@@ -55,13 +55,13 @@ public class ExpLengthLexemeScorer implements ISerializableScorer<Lexeme> {
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return "scorer.lexeme.explength";
 		}
 
 		@Override
 		public ResourceUsage usage() {
-			return new ResourceUsage.Builder(type(),
+			return new ResourceUsage.Builder(getType(),
 					ExpLengthLexemeScorer.class)
 					.setDescription(
 							"Lexeme scorer that computes base * n ^ exponent, where n is the number of tokens in the lexeme")

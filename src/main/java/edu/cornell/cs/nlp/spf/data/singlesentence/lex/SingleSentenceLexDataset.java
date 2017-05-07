@@ -215,13 +215,13 @@ public class SingleSentenceLexDataset
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return "data.single.lex";
 		}
 
 		@Override
 		public ResourceUsage usage() {
-			return new ResourceUsage.Builder(type(),
+			return new ResourceUsage.Builder(getType(),
 					SingleSentenceLexDataset.class)
 							.setDescription(
 									"Dataset for pairs of sentences and logical forms with sentence-specific lexical entries")

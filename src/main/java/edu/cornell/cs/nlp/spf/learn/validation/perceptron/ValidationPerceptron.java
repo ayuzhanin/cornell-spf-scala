@@ -34,7 +34,6 @@ import edu.cornell.cs.nlp.spf.data.collection.IDataCollection;
 import edu.cornell.cs.nlp.spf.data.utils.IValidator;
 import edu.cornell.cs.nlp.spf.explat.IResourceRepository;
 import edu.cornell.cs.nlp.spf.explat.ParameterizedExperiment;
-import edu.cornell.cs.nlp.spf.explat.ParameterizedExperiment.Parameters;
 import edu.cornell.cs.nlp.spf.explat.resources.IResourceObjectCreator;
 import edu.cornell.cs.nlp.spf.explat.resources.usage.ResourceUsage;
 import edu.cornell.cs.nlp.spf.genlex.ccg.ILexiconGenerator;
@@ -533,7 +532,7 @@ public class ValidationPerceptron<SAMPLE extends IDataItem<?>, DI extends ILabel
 
         @SuppressWarnings("unchecked")
         @Override
-        public ValidationPerceptron<SAMPLE, DI, MR> create(Parameters params,
+        public ValidationPerceptron<SAMPLE, DI, MR> create(ParameterizedExperiment.Parameters params,
                                                            IResourceRepository repo) {
 
             final IDataCollection<DI> trainingData = repo
@@ -601,13 +600,13 @@ public class ValidationPerceptron<SAMPLE extends IDataItem<?>, DI extends ILabel
         }
 
         @Override
-        public String type() {
+        public String getType() {
             return type;
         }
 
         @Override
         public ResourceUsage usage() {
-            return new ResourceUsage.Builder(type(), ValidationPerceptron.class)
+            return new ResourceUsage.Builder(getType(), ValidationPerceptron.class)
                     .setDescription("Validation-based perceptron")
                     .addParam("data", "id", "Training data")
                     .addParam("genlex", "ILexiconGenerator", "GENLEX procedure")

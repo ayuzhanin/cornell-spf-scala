@@ -56,7 +56,7 @@ public class ApplicationCreator<MR> implements
 	}
 	
 	@Override
-	public String type() {
+	public String getType() {
 		return type;
 	}
 	

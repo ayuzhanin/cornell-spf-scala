@@ -84,13 +84,13 @@ public class OriginLexicalEntryScorer<MR> implements
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return "scorer.lex.origin";
 		}
 
 		@Override
 		public ResourceUsage usage() {
-			return new ResourceUsage.Builder(type(),
+			return new ResourceUsage.Builder(getType(),
 					OriginLexicalEntryScorer.class)
 					.setDescription(
 							"Lexical entry scorer that assigns different constants to lexical entries based on their origin")

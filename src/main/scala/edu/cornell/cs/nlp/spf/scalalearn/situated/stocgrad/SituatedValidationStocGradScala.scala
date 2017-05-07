@@ -46,31 +46,31 @@ import edu.cornell.cs.nlp.utils.log.{ILogger, LoggerFactory}
   */
 
 class SituatedValidationStocGradScala[SAMPLE <: ISituatedDataItem[Sentence, _],
-                                    MR,
-                                    ESTEP,
-                                    ERESULT,
-                                    DI <: ILabeledDataItem[SAMPLE, _]] private(
-                                      val numIterations: Int,
-                                      override val trainingData: IDataCollection[DI],
-                                      override val trainingDataDebug: java.util.Map[DI, Pair[MR, ERESULT]],
-                                      override val maxSentenceLength: Int,
-                                      override val lexiconGenerationBeamSize: Int,
-                                      val graphParser: IJointGraphParser[SAMPLE, MR, ESTEP, ERESULT],
-                                      override val parserOutputLogger: IJointOutputLogger[MR, ESTEP, ERESULT],
-                                      val alpha0: Double,
-                                      val c: Double,
-                                      val validator: IValidator[DI, ERESULT],
-                                      override val categoryServices: ICategoryServices[MR],
-                                      override val genlex: ILexiconGenerator[DI, MR, IJointModelImmutable[SAMPLE, MR, ESTEP]])
+                                      MR,
+                                      ESTEP,
+                                      ERESULT,
+                                      DI <: ILabeledDataItem[SAMPLE, _]] private(
+                                          val numIterations: Int,
+                                          val trainingData: IDataCollection[DI],
+                                          val trainingDataDebug: java.util.Map[DI, Pair[MR, ERESULT]],
+                                          val maxSentenceLength: Int,
+                                          val lexiconGenerationBeamSize: Int,
+                                          val graphParser: IJointGraphParser[SAMPLE, MR, ESTEP, ERESULT],
+                                          override val parserOutputLogger: IJointOutputLogger[MR, ESTEP, ERESULT],
+                                          val alpha0: Double,
+                                          val c: Double,
+                                          val validator: IValidator[DI, ERESULT],
+                                          override val categoryServices: ICategoryServices[MR],
+                                          val genlex: ILexiconGenerator[DI, MR, IJointModelImmutable[SAMPLE, MR, ESTEP]])
   extends AbstractSituatedLearnerScala[SAMPLE, MR, ESTEP, ERESULT, DI](numIterations,
-                                                                  trainingData,
-                                                                  trainingDataDebug,
-                                                                  maxSentenceLength,
-                                                                  lexiconGenerationBeamSize,
-                                                                  graphParser,
-                                                                  parserOutputLogger,
-                                                                  categoryServices,
-                                                                  genlex) {
+                                                                        trainingData,
+                                                                        trainingDataDebug,
+                                                                        maxSentenceLength,
+                                                                        lexiconGenerationBeamSize,
+                                                                        graphParser,
+                                                                        parserOutputLogger,
+                                                                        categoryServices,
+                                                                        genlex) {
 
   log.info(s"Init SituatedValidationSensitiveStocGrad: numIterations=$numIterations, trainingData.size=${trainingData.size}, trainingDataDebug.size=${trainingDataDebug.size}, maxSentenceLength=$maxSentenceLength ...")
   log.info(s"Init SituatedValidationSensitiveStocGrad: ... lexiconGenerationBeamSize=$lexiconGenerationBeamSize, alpah0=$alpha0, c=$c")
@@ -149,25 +149,22 @@ class SituatedValidationStocGradScala[SAMPLE <: ISituatedDataItem[Sentence, _],
         update.dropNoise()
         stocGradientNumUpdates = stocGradientNumUpdates + 1
         log.info(s"Scale: $scale")
-        if (update.size == 0) {
-          log.info("No update")
-          return
-        }
+        if (update.size == 0) log.info("No update")
         else {
           log.info(s"Update: $update")
           stats.appendSampleStat(dataItemNumber, epochNumber, TRIGGERED_UPDATE)
           stats.count("update", epochNumber)
-        }
 
-        // Check for NaNs and super large updates
-        if (update.isBad) {
-          log.error(s"Bad update: $update -- log-norm: $logNorm -- feats: ${null}")
-          log.error(model.getTheta.printValues(update))
-          throw new IllegalStateException("bad update")
+          // Check for NaNs and super large updates
+          if (update.isBad) {
+            log.error(s"Bad update: $update -- log-norm: $logNorm -- feats: ${null}")
+            log.error(model.getTheta.printValues(update))
+            throw new IllegalStateException("bad update")
+          }
+          // Do the update
+          else if (!update.valuesInRange(-100, 100)) log.warn("Large update")
+          update.addTimesInto(1, model.getTheta)
         }
-        // Do the update
-        else if (!update.valuesInRange(-100, 100)) log.warn("Large update")
-        update.addTimesInto(1, model.getTheta)
       }
     }
   }
@@ -188,12 +185,10 @@ object SituatedValidationStocGradScala {
                 MR,
                 ESTEP,
                 ERESULT,
-                DI <: ISituatedDataItem[SAMPLE, _]](val name: String)
+                DI <: ILabeledDataItem[SAMPLE, _]](val name: String = "learner.situated.valid.stocgrad")
     extends IResourceObjectCreator[SituatedValidationStocGradScala[SAMPLE, MR, ESTEP, ERESULT, DI]] {
 
-    def this() = this("learner.situated.valid.stocgrad")
-
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings(Array("unchecked"))
     override def create(params: ParameterizedExperiment#Parameters,
                         repo: IResourceRepository): SituatedValidationStocGradScala[SAMPLE, MR, ESTEP, ERESULT, DI] = {
 
@@ -252,9 +247,9 @@ object SituatedValidationStocGradScala {
       )
     }
 
-    override def `type`: String = name
+    override def getType: String = name
 
-    override def usage: ResourceUsage = new ResourceUsage.Builder(`type`, classOf[SituatedValidationStocGradScala[SAMPLE, MR, ESTEP, ERESULT, DI]])
+    override def usage: ResourceUsage = new ResourceUsage.Builder(getType, classOf[SituatedValidationStocGradScala[SAMPLE, MR, ESTEP, ERESULT, DI]])
       .setDescription("Validation senstive stochastic gradient for situated learning of models with situated inference (cite: Artzi and Zettlemoyer 2013)")
       .addParam("c", "double", "Learing rate c parameter, temperature=alpha_0/(1+c*tot_number_of_training_instances)")
       .addParam("alpha0", "double", "Learing rate alpha0 parameter, temperature=alpha_0/(1+c*tot_number_of_training_instances)")

@@ -555,13 +555,13 @@ public class FactoredLexicon implements ILexicon<LogicalExpression> {
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return "lexicon.factored";
 		}
 
 		@Override
 		public ResourceUsage usage() {
-			return new ResourceUsage.Builder(type(), FactoredLexicon.class)
+			return new ResourceUsage.Builder(getType(), FactoredLexicon.class)
 					.addParam("files", File.class,
 							"List of files to read entries from")
 					.setDescription(

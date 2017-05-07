@@ -21,17 +21,17 @@ import scala.util.Try
 abstract class AbstractLearnerScala[SAMPLE <: IDataItem[_],
                                     DI <: ILabeledDataItem[SAMPLE, _],
                                     PO <: IParserOutput[MR],
-                                    MR] protected(val epochs: Int,
-                                                   val trainingData: IDataCollection[DI],
-                                                   val trainingDataDebug: Map[DI, MR],
-                                                   val lexiconGenerationBeamSize: Integer,
-                                                   val parserOutputLogger: IOutputLogger[MR],
-                                                   val conflateGenlexAndPrunedParses: Boolean,
-                                                   val errorDriven: Boolean,
-                                                   val categoryServices: ICategoryServices[MR],
-                                                   val genlex: ILexiconGenerator[DI, MR, IModelImmutable[SAMPLE, MR]],
-                                                   val processingFilter: IFilter[DI],
-                                                   val parsingFilterFactory: IParsingFilterFactory[DI, MR])
+                                    MR] protected(private val epochs: Int,
+                                                   private val trainingData: IDataCollection[DI],
+                                                   private val trainingDataDebug: Map[DI, MR],
+                                                   private val lexiconGenerationBeamSize: Int,
+                                                   protected val parserOutputLogger: IOutputLogger[MR],
+                                                   private val conflateGenlexAndPrunedParses: Boolean,
+                                                   private val errorDriven: Boolean,
+                                                   private val categoryServices: ICategoryServices[MR],
+                                                   private val genlex: ILexiconGenerator[DI, MR, IModelImmutable[SAMPLE, MR]],
+                                                   private val processingFilter: IFilter[DI],
+                                                   private val parsingFilterFactory: IParsingFilterFactory[DI, MR])
   extends ILearner[SAMPLE, DI, Model[SAMPLE, MR]] {
 
   import AbstractLearnerScala._
@@ -122,12 +122,12 @@ abstract class AbstractLearnerScala[SAMPLE <: IDataItem[_],
                 // Step III: Update parameters
                 // ///////////////////////////
 
-                if (conflateGenlexAndPrunedParses && generationParserOutput != null)
-                  parameterUpdate(dataItem, parserOutput, generationParserOutput, model, itemCounter, epochNumber)
+                if (conflateGenlexAndPrunedParses && generationParserOutput.nonEmpty)
+                  parameterUpdate(dataItem, parserOutput, generationParserOutput.get, model, itemCounter, epochNumber)
                 else {
                   val prunedParserOutput: PO = parse(dataItem, parsingFilterFactory.create(dataItem), dataItemModel)
                   log.info("Conditioned parsing time: %.4fsec", prunedParserOutput.getParsingTime / 1000.0)
-                  parserOutputLogger.log(prunedParserOutput, dataItemModel, String.format("train-%d-%d-conditioned", epochNumber, itemCounter))
+                  parserOutputLogger.log(prunedParserOutput, dataItemModel, s"train-$epochNumber-$itemCounter-conditioned")
                   parameterUpdate(dataItem, parserOutput, prunedParserOutput, model, itemCounter, epochNumber)
                 }
               }
@@ -216,7 +216,7 @@ abstract class AbstractLearnerScala[SAMPLE <: IDataItem[_],
                                dataItemNumber: Int,
                                dataItemModel: IDataItemModel[MR],
                                model: Model[SAMPLE, MR],
-                               epochNumber: Int): PO = {
+                               epochNumber: Int): Option[PO] = {
 
     // Generate lexical entries
     val generatedLexicon = genlex.generate(dataItem, model, categoryServices)
@@ -273,13 +273,12 @@ abstract class AbstractLearnerScala[SAMPLE <: IDataItem[_],
 
       // Record statistics
       if (newLexicalEntries > 0) stats.appendSampleStat(dataItemNumber, epochNumber, newLexicalEntries)
-      parserOutput
+      Some(parserOutput)
     }
     else {
       // Skip lexical induction
       log.info("Skipped GENLEX step. No generated lexical items.")
-      val nullPo: PO = null
-      nullPo
+      None
     }
   }
 

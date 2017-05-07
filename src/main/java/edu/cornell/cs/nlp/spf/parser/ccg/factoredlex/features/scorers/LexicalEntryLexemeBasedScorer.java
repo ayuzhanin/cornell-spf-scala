@@ -57,13 +57,13 @@ public class LexicalEntryLexemeBasedScorer implements
 		}
 		
 		@Override
-		public String type() {
+		public String getType() {
 			return "scorer.lex.lexemebased";
 		}
 		
 		@Override
 		public ResourceUsage usage() {
-			return new ResourceUsage.Builder(type(),
+			return new ResourceUsage.Builder(getType(),
 					LexicalEntryLexemeBasedScorer.class)
 					.setDescription(
 							"Scorer to score a lexical entry based on its lexeme")

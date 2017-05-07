@@ -353,13 +353,13 @@ public class Tester<SAMPLE extends IDataItem<?>, MR, DI extends ILabeledDataItem
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return "tester";
 		}
 
 		@Override
 		public ResourceUsage usage() {
-			return new ResourceUsage.Builder(type(), Tester.class)
+			return new ResourceUsage.Builder(getType(), Tester.class)
 					.setDescription(
 							"Model tester. Tests inference using the model on some testing data")
 					.addParam("data", "id",

@@ -98,7 +98,7 @@ public class SyntaxAttributeFeatureSet<DI extends IDataItem<?>>
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return type;
 		}
 

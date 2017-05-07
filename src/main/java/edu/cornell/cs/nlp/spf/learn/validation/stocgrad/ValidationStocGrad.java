@@ -491,13 +491,13 @@ public class ValidationStocGrad<SAMPLE extends IDataItem<SAMPLE>, DI extends ILa
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return type;
 		}
 
 		@Override
 		public ResourceUsage usage() {
-			return new ResourceUsage.Builder(type(), ValidationPerceptron.class)
+			return new ResourceUsage.Builder(getType(), ValidationPerceptron.class)
 					.setDescription(
 							"Validation-based stochastic gradient learner")
 					.addParam("data", "id", "Training data")

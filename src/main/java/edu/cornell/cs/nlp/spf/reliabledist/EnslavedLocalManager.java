@@ -401,7 +401,7 @@ public class EnslavedLocalManager implements IManager, Runnable, ITaskExecutor {
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return type;
 		}
 

@@ -239,7 +239,7 @@ public class PartiallyFactoredLexicon implements ILexicon<LogicalExpression> {
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return type;
 		}
 

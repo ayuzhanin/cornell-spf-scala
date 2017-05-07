@@ -75,7 +75,7 @@ public class BackwardComposition<MR> extends AbstractComposition<MR> {
 		}
 
 		@Override
-		public String type() {
+		public String getType() {
 			return type;
 		}
 
