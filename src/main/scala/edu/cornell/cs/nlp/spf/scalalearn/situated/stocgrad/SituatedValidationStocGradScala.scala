@@ -72,8 +72,15 @@ class SituatedValidationStocGradScala[SAMPLE <: ISituatedDataItem[Sentence, _],
                                                                         categoryServices,
                                                                         genlex) {
 
+  // internal
+
+  private val log: ILogger = LoggerFactory.create(classOf[SituatedValidationStocGradScala[SAMPLE, MR, ESTEP, ERESULT, DI]])
+  private var stocGradientNumUpdates: Int = 0
+
   log.info(s"Init SituatedValidationSensitiveStocGrad: numIterations=$numIterations, trainingData.size=${trainingData.size}, trainingDataDebug.size=${trainingDataDebug.size}, maxSentenceLength=$maxSentenceLength ...")
   log.info(s"Init SituatedValidationSensitiveStocGrad: ... lexiconGenerationBeamSize=$lexiconGenerationBeamSize, alpah0=$alpha0, c=$c")
+
+  // public
 
   override def train(model: JModel): Unit = {
     stocGradientNumUpdates = 0
@@ -172,11 +179,6 @@ class SituatedValidationStocGradScala[SAMPLE <: ISituatedDataItem[Sentence, _],
   override protected def validate(dataItem: DI, hypothesis: ERESULT): Boolean =
     validator.isValid(dataItem, hypothesis)
 
-  // internal
-
-  private val log: ILogger = LoggerFactory.create(classOf[SituatedValidationStocGradScala[SAMPLE, MR, ESTEP, ERESULT, DI]])
-
-  private var stocGradientNumUpdates: Int = 0
 }
 
 object SituatedValidationStocGradScala {

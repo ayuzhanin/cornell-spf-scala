@@ -70,6 +70,11 @@ class ValidationStocGradScala[SAMPLE <: IDataItem[SAMPLE], DI <: ILabeledDataIte
                 processingFilter,
                 parsingFilterFactory) {
 
+  // internal
+
+  private val log: ILogger = LoggerFactory.create(classOf[ValidationStocGradScala[SAMPLE, DI, MR]])
+  private var stocGradientNumUpdates = 0
+
   import AbstractLearnerScala._
 
   log.info(s"Init ValidationStocGrad: numIterations=$numIterations, trainingData.size()=${trainingData.size}, trainingDataDebug.size()=${trainingDataDebug.size}, maxSentenceLength=$maxSentenceLength ...")
@@ -77,6 +82,9 @@ class ValidationStocGradScala[SAMPLE <: IDataItem[SAMPLE], DI <: ILabeledDataIte
   log.info(s"Init ValidationStocGrad: ... conflateParses=${if (conflateGenlexAndPrunedParses) "true" else "false"}, erroDriven=${if (errorDriven) "true" else "false"}")
   log.info(s"Init ValidationStocGrad: ... c=$c, alpha0=$alpha0")
   log.info(s"Init ValidationStocGrad: ... parsingFilterFactory=$parsingFilterFactory")
+
+
+  // public
 
   override def train(model: Model[SAMPLE, MR]): Unit = {
     stocGradientNumUpdates = 0
@@ -173,11 +181,6 @@ class ValidationStocGradScala[SAMPLE <: IDataItem[SAMPLE], DI <: ILabeledDataIte
 
   override protected def validate(dataItem: DI, hypothesis: MR): Boolean =
     validator.isValid(dataItem, hypothesis)
-
-  // internal
-  private val log: ILogger = LoggerFactory.create(classOf[ValidationStocGradScala[SAMPLE, DI, MR]])
-
-  private var stocGradientNumUpdates = 0
 
 }
 

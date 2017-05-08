@@ -85,12 +85,18 @@ class ValidationPerceptronScala[SAMPLE <: IDataItem[_],
                                                             processingFilter,
                                                             parsingFilterFactory) {
 
+  // internal
+
+  private val log: ILogger = LoggerFactory.create(classOf[ValidationPerceptronScala[_ <: IDataItem[_], _ <: ILabeledDataItem[_, _], _]])
+
   import AbstractLearnerScala._
 
   log.info(s"Init ValidationStocGrad: numIterations=$numIterations, margin=$margin, trainingData.size()=${trainingData.size}, trainingDataDebug.size()=${trainingDataDebug.size}  ...")
   log.info(s"Init ValidationStocGrad: ... lexiconGenerationBeamSize=$lexiconGenerationBeamSize")
   log.info(s"Init ValidationStocGrad: ... conflateParses=${if (conflateGenlexAndPrunedParses) "true" else "false"}, errorDriven=${if (errorDriven) "true" else "false"}")
   log.info(s"Init ValidationStocGrad: ... parsingFilterFactory=$parsingFilterFactory")
+
+  // public
 
   override protected def parameterUpdate(dataItem: DI,
                                          realOutput: IParserOutput[MR],
@@ -242,7 +248,6 @@ class ValidationPerceptronScala[SAMPLE <: IDataItem[_],
     (violatingValids, violatingInvalids)
   }
 
-  private val log: ILogger = LoggerFactory.create(classOf[ValidationPerceptronScala[_ <: IDataItem[_], _ <: ILabeledDataItem[_, _], _]])
 }
 
 object ValidationPerceptronScala {
