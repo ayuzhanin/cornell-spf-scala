@@ -68,6 +68,11 @@ The framework contains an example experiment using the GeoQuery corpus. To use d
 The log and output files are written to a newly generated directory in the experiment directory:
 ``geoquery/experiments/template/dev.cross/``
 
+### Running example with scala and sbt
+To run experiment with scala and sbt type:
+
+``sbt "run-main edu.cornell.cs.nlp.spf.geoquery.GeoMain src/main/resources/geoquery/experiments/template/dev.cross/dev.fold0.exp"``
+
 View the .exp file and see how it defines arguments and how it includes them from other files. Another critical point of entry is the class ``edu.cornell.cs.lil.tiny.geoquery.GeoMain``. The experiments platform (ExPlat) is reviewed [below][explat].
 
 ### Working with the Code
